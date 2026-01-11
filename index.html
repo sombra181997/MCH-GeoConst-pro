@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCH Pro - Ingeniería & Construcción</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
+        .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+
+    <script>
+        tailwind.config = { theme: { extend: { colors: { slate: { 850: '#151e2e' } } } } }
+    </script>
+</head>
+<body class="bg-slate-900 text-slate-200">
+
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        import { 
+            Calculator, Hammer, Droplets, Truck, Construction, 
+            Ruler, ArrowUp, ArrowDown, Check, Home, Grid,
+            Box, Layers, AlertTriangle, X, Circle, Square, Minus, Plus, Delete, Settings, Info, PenTool, ChevronUp, Triangle, Move, Shovel, Wand2, Eye, MousePointerClick, Scaling, TrendingUp, Table2, Percent, Beaker, Activity,
+            Divide, Percent as PercentIcon, Pi, Container, Scale, ArrowRightLeft, FunctionSquare
+        } from 'https://esm.sh/lucide-react@0.292.0';
+
+        // --- COMPONENTES UI ---
+        const GlassCard = ({ children, className = "", onClick }) => (
+            <div onClick={onClick} className={`bg-slate-800/60 backdrop-blur-md border border-slate-700/50 rounded-2xl p-5 shadow-xl transition-all duration-300 ${onClick ? 'cursor-pointer hover:bg-slate-700/60 hover:scale-[1.02]' : ''} ${className}`}>
+                {children}
+            </div>
+        );
+
+        const SectionTitle = ({ children }) => (
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 ml-1 mt-6">{children}</h3>
+        );
+
+        const FieldInput = ({ label, value, onChange, step = 1, min = 0, unit, className = "", placeholder="" }) => {
+            const handleAdjust = (delta) => {
+                const currentVal = value === '' ? 0 : parseFloat(value);
+                const newVal = Math.round((currentVal + delta) * 100) / 100; 
+                onChange(newVal);
+            };
+            return (
+                <div className={`mb-4 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 ${className}`}>
+                <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-slate-400 uppercase ml-1">{label}</label><span className="text-xs font-bold text-slate-500 uppercase">{unit}</span></div>
+                <div className="flex items-center gap-3"><button onClick={() => handleAdjust(-step)} className="w-12 h-12 flex items-center justify-center bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 rounded-xl border border-slate-700 active:scale-95 transition-all"><Minus size={24} strokeWidth={3} /></button><div className="flex-1 relative"><input type="number" inputMode="decimal" placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-slate-900 border-2 border-slate-700 focus:border-cyan-500 text-white text-center text-2xl font-bold py-2 rounded-xl focus:outline-none transition-all" /></div><button onClick={() => handleAdjust(step)} className="w-12 h-12 flex items-center justify-center bg-slate-800 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 rounded-xl border border-slate-700 active:scale-95 transition-all"><Plus size={24} strokeWidth={3} /></button></div>
+                </div>
+            );
+        };
+
+        const SelectField = ({ label, value, onChange, options }) => (
+        <div className="mb-4"><label className="text-xs font-bold text-slate-400 uppercase mb-1.5 block ml-1">{label}</label><div className="relative"><select value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-slate-900/80 border border-slate-700 text-white rounded-xl py-3 pl-4 pr-10 appearance-none focus:outline-none focus:border-cyan-500 transition-all text-base">{options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select><div className="absolute right-4 top-4 pointer-events-none"><svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></div></div></div>
+        );
+
+        // --- HERRAMIENTAS INTERNAS ---
+        const WaterCorrectionTool = () => {
+            const [designWater, setDesignWater] = useState(200);
+            const [aggWeight, setAggWeight] = useState(1000); const [humidity, setHumidity] = useState(5.0); const [absorption, setAbsorption] = useState(1.0);
+            const freeMoistureParams = humidity - absorption; const waterContribution = aggWeight * (freeMoistureParams / 100); const realWater = designWater - waterContribution;
+            const isAddingWater = waterContribution < 0;
+            return ( <div className="space-y-4 animate-fade-in"> <div className={`rounded-2xl p-6 border-2 shadow-[0_0_30px_rgba(0,0,0,0.2)] text-center relative overflow-hidden ${isAddingWater ? 'bg-slate-900 border-yellow-500/50' : 'bg-slate-900 border-cyan-500/50'}`}> <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-20"></div> <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Agua Real a Betonera</div> <div className="flex items-center justify-center gap-2"> <Droplets size={32} className={isAddingWater ? 'text-yellow-400' : 'text-cyan-400'} fill="currentColor" /> <span className="text-6xl font-black text-white tracking-tight">{realWater.toFixed(1)}</span> <span className="text-xl font-bold text-slate-500 mt-4">L</span> </div> <div className="mt-4 p-2 bg-slate-800/50 rounded-lg text-sm border border-slate-700"> {isAddingWater ? ( <span className="text-yellow-400 font-bold flex items-center justify-center gap-2"><AlertTriangle size={14}/> ¡Árido Seco! Sumar {Math.abs(waterContribution).toFixed(1)} L extra.</span> ) : ( <span className="text-cyan-400 font-bold flex items-center justify-center gap-2"><Check size={14}/> Árido Húmedo. Restar {waterContribution.toFixed(1)} L.</span> )} </div> </div> <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"> <SectionTitle>Datos de la Mezcla</SectionTitle> <FieldInput label="Agua de Diseño" value={designWater} onChange={setDesignWater} unit="Litros" step={5} /> <div className="h-px bg-slate-700 my-4"></div> <FieldInput label="Peso Árido" value={aggWeight} onChange={setAggWeight} unit="Kg" step={50} /> <div className="grid grid-cols-2 gap-3"> <div className="bg-blue-900/10 p-2 rounded-xl border border-blue-500/20"> <FieldInput label="Humedad (%)" value={humidity} onChange={setHumidity} unit="%" step={0.5} className="mb-0 border-blue-500/30"/> </div> <div className="bg-yellow-900/10 p-2 rounded-xl border border-yellow-500/20"> <FieldInput label="Absorción (%)" value={absorption} onChange={setAbsorption} unit="%" step={0.1} className="mb-0 border-yellow-500/30"/> </div> </div> </div> </div> );
+        };
+
+        const InterpolationTool = () => {
+            const [x1, setX1] = useState(7);
+            const [y1, setY1] = useState(150); const [x2, setX2] = useState(28); const [y2, setY2] = useState(300); const [xTarget, setXTarget] = useState(14);
+            let resultY = 0; let slope = 0; if (x2 !== x1) { slope = (y2 - y1) / (x2 - x1);
+            resultY = y1 + (xTarget - x1) * slope; } let percentage = 0;
+            if (y2 !== 0) { percentage = (resultY / y2) * 100;
+            }
+            return (<div className="space-y-4 animate-fade-in"><div className="bg-slate-900 rounded-2xl p-6 border-2 border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.1)] text-center relative overflow-hidden"><div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent"></div><div className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1">Resultado Calculado</div><div className="flex flex-col items-center justify-center gap-1"><span className="text-5xl font-black text-white tracking-tight">{resultY.toFixed(1)}</span><span className="text-sm font-bold bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/30 flex items-center gap-1"><Percent size={12} strokeWidth={3}/> {percentage.toFixed(1)}% del Máximo (Y2)</span></div></div><div className="grid grid-cols-2 gap-4"><div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700"><div className="text-center text-xs font-bold text-slate-400 mb-2 uppercase flex justify-center items-center gap-1"><ArrowDown size={12}/> Inicio (Piso)</div><div className="space-y-2"><div><label className="text-[9px] text-slate-500 block ml-1 font-bold">Día/Dato (X1)</label><input type="number" value={x1} onChange={(e)=>setX1(parseFloat(e.target.value))} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white font-bold text-center focus:border-emerald-500 outline-none"/></div><div><label className="text-[9px] text-slate-500 block ml-1 font-bold">Valor (Y1)</label><input type="number" value={y1} onChange={(e)=>setY1(parseFloat(e.target.value))} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-emerald-400 font-bold text-center focus:border-emerald-500 outline-none"/></div></div></div><div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700"><div className="text-center text-xs font-bold text-slate-400 mb-2 uppercase flex justify-center items-center gap-1"><ArrowUp size={12}/> Final (Techo)</div><div className="space-y-2"><div><label className="text-[9px] text-slate-500 block ml-1 font-bold">Día/Dato (X2)</label><input type="number" value={x2} onChange={(e)=>setX2(parseFloat(e.target.value))} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white font-bold text-center focus:border-emerald-500 outline-none"/></div><div><label className="text-[9px] text-slate-500 block ml-1 font-bold">Valor (Y2)</label><input type="number" value={y2} onChange={(e)=>setY2(parseFloat(e.target.value))} className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-emerald-400 font-bold text-center focus:border-emerald-500 outline-none"/></div></div></div></div><div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><SectionTitle>¿Dónde estás hoy?</SectionTitle><div className="flex items-center gap-4"><span className="font-bold text-white text-lg">X =</span><div className="flex-1"><FieldInput label="" value={xTarget} onChange={setXTarget} unit="" step={0.5} className="mb-0 border-emerald-500/50"/></div></div></div></div>);
+        };
+        const ConcreteTool = () => {
+            const [mode, setMode] = useState('slab');
+            const [shape, setShape] = useState('rect'); const [dims, setDims] = useState({ l: 3.0, w: 3.0, h: 0.10 });
+            const [colDims, setColDims] = useState({ h: 2.4, w: 0.30, d: 0.30 }); const [waste, setWaste] = useState(1.05);
+            const getVal = (v) => { const parsed = parseFloat(v); return isNaN(parsed) ? 0 : parsed; };
+            let vol = 0; if (mode === 'slab') { vol = getVal(dims.l) * getVal(dims.w) * getVal(dims.h);
+            } else { if (shape === 'rect') { vol = getVal(colDims.w) * getVal(colDims.d) * getVal(colDims.h);
+            } else { const r = getVal(colDims.w) / 2; vol = Math.PI * Math.pow(r, 2) * getVal(colDims.h);
+            } } const totalVol = vol * waste; 
+            const DrawConcrete = () => { 
+                const dL = getVal(dims.l), dW = getVal(dims.w), dH = getVal(dims.h), cH = getVal(colDims.h), cW = getVal(colDims.w);
+                if (mode === 'slab') { const sL = Math.min(Math.max(dL * 10, 50), 200), sH = Math.min(Math.max(dH * 200, 10), 60);
+                return (<svg viewBox="0 0 300 150" className="w-full h-full p-4 relative z-10"><path d={`M 50 ${100-sH} L 100 ${100-sH+30} L 100 130 L 50 100 Z`} fill="#0e7490" stroke="#22d3ee" strokeWidth="1"/><path d={`M 100 ${100-sH+30} L ${50+sL+50} ${100-sH} L ${50+sL+50} ${100-sH+sH} L 100 130 Z`} fill="#0891b2" stroke="#22d3ee" strokeWidth="1"/><path d={`M 50 ${100-sH} L ${50+sL} ${100-sH-30} L ${50+sL+50} ${100-sH} L 100 ${100-sH+30} Z`} fill="rgba(6, 182, 212, 0.3)" stroke="#22d3ee" strokeWidth="2" /><text x="150" y="140" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">Losa / Radier</text></svg>);
+                } 
+                else { const sH = Math.min(Math.max(cH * 40, 60), 120), sW = Math.min(Math.max(cW * 150, 40), 100);
+                if (shape === 'rect') return (<svg viewBox="0 0 300 150" className="w-full h-full p-4 relative z-10"><path d={`M 110 20 L ${110+sW} 20 L ${110+sW} ${20+sH} L 110 ${20+sH} Z`} fill="rgba(6, 182, 212, 0.3)" stroke="#22d3ee" strokeWidth="2" /><path d={`M 110 20 L 130 10 L ${130+sW} 10 L ${110+sW} 20`} fill="none" stroke="#22d3ee" strokeWidth="1" /><path d={`M ${130+sW} 10 L ${130+sW} ${10+sH} L ${110+sW} ${20+sH}`} fill="none" stroke="#22d3ee" strokeWidth="1" /><text x="150" y="140" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">Pilar Rectangular</text></svg>);
+                else return (<svg viewBox="0 0 300 150" className="w-full h-full p-4 relative z-10"><path d={`M 120 30 L 120 ${30+sH} A ${sW/2} 10 0 0 0 ${120+sW} ${30+sH} L ${120+sW} 30`} fill="rgba(6, 182, 212, 0.3)" stroke="#22d3ee" strokeWidth="2" /><ellipse cx={120 + sW/2} cy="30" rx={sW/2} ry="10" fill="#0891b2" stroke="#22d3ee" strokeWidth="2" /><path d={`M 120 ${30+sH} A ${sW/2} 10 0 0 1 ${120+sW} ${30+sH}`} fill="none" stroke="#22d3ee" strokeWidth="1" strokeDasharray="4 2" opacity="0.5" /><text x="150" y="140" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">Pilar Redondo</text></svg>);
+                } 
+            };
+            return (<div><div className="flex bg-slate-900 p-1 rounded-xl mb-4 border border-slate-700"><button className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${mode === 'slab' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`} onClick={() => setMode('slab')}><Grid size={18} /> Losa / Piso</button><button className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${mode === 'column' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`} onClick={() => setMode('column')}><Box size={18} /> Pilar / Viga</button></div>{mode === 'column' && (<div className="flex justify-center gap-4 mb-4 animate-fade-in"><button onClick={() => setShape('rect')} className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all ${shape === 'rect' ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400' : 'border-slate-700 text-slate-500'}`}><Square size={20} /> <span className="text-xs font-bold uppercase">Rectangular</span></button><button onClick={() => setShape('circle')} className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all ${shape === 'circle' ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400' : 'border-slate-700 text-slate-500'}`}><Circle size={20} /> <span className="text-xs font-bold uppercase">Redondo</span></button></div>)}<div className="w-full h-48 bg-slate-900 rounded-xl mb-6 flex items-center justify-center relative overflow-hidden border border-slate-700/50 shadow-inner"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-slate-900"></div><DrawConcrete /><div className="absolute top-4 right-4 bg-slate-900/90 backdrop-blur px-4 py-2 rounded-xl border border-slate-700 shadow-xl z-20"><span className="text-3xl font-black text-cyan-400">{totalVol.toFixed(2)}</span><span className="text-sm font-bold text-slate-400 ml-1">m³</span></div></div><div className="animate-fade-in space-y-2">{mode === 'slab' ? (<><FieldInput label="Largo" value={dims.l} onChange={(v) => setDims({...dims, l: v})} unit="Metros" /><FieldInput label="Ancho" value={dims.w} onChange={(v) => setDims({...dims, w: v})} unit="Metros" /><FieldInput label="Espesor" value={dims.h} onChange={(v) => setDims({...dims, h: v})} unit="Metros" step={0.01} /></>) : (<><FieldInput label="Altura Total" value={colDims.h} onChange={(v) => setColDims({...colDims, h: v})} unit="Metros" />{shape === 'rect' ? (<><FieldInput label="Ancho (Cara 1)" value={colDims.w} onChange={(v) => setColDims({...colDims, w: v})} unit="Metros" step={0.05} /><FieldInput label="Fondo (Cara 2)" value={colDims.d} onChange={(v) => setColDims({...colDims, d: v})} unit="Metros" step={0.05} /></>) : (<FieldInput label="Diámetro" value={colDims.w} onChange={(v) => setColDims({...colDims, w: v})} unit="Metros" step={0.05} />)}</>)}<div className="mt-6 pt-4 border-t border-slate-700/50"><SelectField label="Factor de Pérdida" value={waste} onChange={(val) => setWaste(val)} options={[{value: 1.0, label: '0% (Volumen Exacto)'},{value: 1.05, label: '5% (Recomendado Obra)'},{value: 1.10, label: '10% (Seguridad)'}]} /></div></div></div>);
+        };
+        const WaterLevelTool = () => { const [refLevel, setRefLevel] = useState(100);
+            const [points, setPoints] = useState([]); const [currentInput, setCurrentInput] = useState(''); const addPoint = () => { if (!currentInput) return;
+            const val = parseFloat(currentInput); const diff = refLevel - val; setPoints([...points, { val, diff, id: Date.now() }]); setCurrentInput(''); };
+            const removePoint = (id) => setPoints(points.filter(p => p.id !== id));
+            return (<div className="space-y-6"><div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-xl flex items-start gap-3"><Droplets className="text-blue-400 w-6 h-6 shrink-0 mt-1" /><div><h4 className="font-bold text-blue-200">Instrucciones</h4><p className="text-sm text-blue-300/80 mt-1">1. Marca nivel referencia (ej: 100cm). <br/>2. Mide los otros puntos.</p></div></div><FieldInput label="Nivel Referencia" value={refLevel} onChange={setRefLevel} unit="cm" step={1} /><div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 mb-6"><label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Nueva Lectura</label><div className="flex gap-2"><input type="number" inputMode="decimal" placeholder="Ej: 102.5" className="flex-1 bg-slate-900 border-2 border-slate-700 focus:border-cyan-500 text-white text-lg font-bold py-3 px-4 rounded-xl focus:outline-none" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addPoint()} /><button onClick={addPoint} className="bg-cyan-600 active:bg-cyan-700 text-white px-6 rounded-xl font-bold transition-colors shadow-lg">AGREGAR</button></div></div><div className="space-y-3">{points.map((p, idx) => (<div key={p.id} className="bg-slate-900/80 p-4 rounded-xl flex justify-between items-center animate-fade-in border border-slate-700 shadow-sm"><div className="flex items-center gap-3"><span className="bg-slate-700 text-slate-300 text-xs font-bold px-2 py-1 rounded">P{idx + 1}</span><span className="text-xl font-mono text-white">{p.val}cm</span></div><div className="flex items-center gap-4"><div className={`text-right font-bold ${p.diff > 0 ? 'text-green-400' : p.diff < 0 ? 'text-red-400' : 'text-slate-400'}`}>{p.diff === 0 ? <span className="flex items-center gap-1 uppercase text-sm"><Check size={16}/> A Nivel</span> : <span className="flex items-center gap-1">{p.diff > 0 ? <ArrowUp size={16}/> : <ArrowDown size={16}/>} {p.diff > 0 ? 'Subir' : 'Bajar'} {Math.abs(p.diff)} cm</span>}</div><button onClick={() => removePoint(p.id)} className="text-slate-600 hover:text-red-400 bg-slate-800 p-2 rounded-lg"><X size={18}/></button></div></div>))}</div></div>);
+        };
+        const TopographyModule = () => {
+            const [tool, setTool] = useState('diff');
+            const [diffData, setDiffData] = useState({ a: 100.0, b: 98.5 }); 
+            const [slopeData, setSlopeData] = useState({ rise: 30.0, dist: 10.00 });
+            const [taludData, setTaludData] = useState({ h: 200.0, ratio: 2.0 }); 
+            const desnivelCm = diffData.b - diffData.a; const desnivelM = desnivelCm / 100;
+            let slopePct = 0, slopeDeg = 0, slopeRatio = 0;
+            if (slopeData.dist !== 0) { const riseM = slopeData.rise / 100; slopePct = (riseM / slopeData.dist) * 100;
+            slopeDeg = Math.atan(riseM / slopeData.dist) * (180 / Math.PI); slopeRatio = riseM !== 0 ? Math.abs(slopeData.dist / riseM) : 0; }
+            const taludHCm = taludData.h; const taludHM = taludHCm / 100; const horizontalM = taludHM * taludData.ratio;
+            return (
+                <div className="animate-fade-in">
+                    <div className="flex items-center gap-3 mb-6"><div className="bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-700"><Activity className="w-6 h-6 text-white" /></div><div><h2 className="text-2xl font-bold text-white">Topografía</h2><p className="text-xs text-slate-400">Nivelación y Pendientes</p></div></div>
+                    <div className="flex p-1 bg-slate-900 rounded-xl mb-6 border border-slate-700 overflow-x-auto shadow-inner no-scrollbar">
+                        <button onClick={() => setTool('diff')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap uppercase tracking-wider ${tool === 'diff' ? 'bg-orange-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>Desnivel</button>
+                        <button onClick={() => setTool('slope')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap uppercase tracking-wider ${tool === 'slope' ? 'bg-orange-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>Pendiente</button>
+                        <button onClick={() => setTool('talud')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap uppercase tracking-wider ${tool === 'talud' ? 'bg-orange-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>Talud</button>
+                        <button onClick={() => setTool('level')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap uppercase tracking-wider ${tool === 'level' ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>Manguera</button>
+                    </div>
+                    <div className="min-h-[300px]">
+                        {tool === 'diff' && (<div className="animate-fade-in space-y-4"><div className={`rounded-2xl p-6 border-2 text-center relative overflow-hidden ${desnivelCm >= 0 ? 'bg-slate-900 border-green-500/50' : 'bg-slate-900 border-red-500/50'}`}><div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Diferencia Total</div><div className={`text-5xl font-black tracking-tight ${desnivelCm >= 0 ? 'text-green-400' : 'text-red-400'}`}>{desnivelCm > 0 ? '+' : ''}{desnivelCm.toFixed(1)} <span className="text-lg text-slate-500">cm</span></div><div className="text-lg font-bold text-slate-400 mt-1">({(desnivelCm > 0 ? '+' : '')}{desnivelM.toFixed(3)} m)</div><div className="mt-3 text-sm font-bold text-white flex items-center justify-center gap-2">{desnivelCm === 0 ? <span className="text-slate-400"><Check size={16}/> A Nivel</span> : (desnivelCm > 0 ? <span className="flex items-center gap-1 text-green-300"><ArrowUp size={16}/> Sube {Math.abs(desnivelCm)} cm</span> : <span className="flex items-center gap-1 text-red-300"><ArrowDown size={16}/> Baja {Math.abs(desnivelCm)} cm</span>)}</div></div><div className="grid grid-cols-2 gap-4"><FieldInput label="Cota A (Inicio)" value={diffData.a} onChange={(v) => setDiffData({...diffData, a: v})} unit="cm" /><FieldInput label="Cota B (Final)" value={diffData.b} onChange={(v) => setDiffData({...diffData, b: v})} unit="cm" /></div><p className="text-center text-[10px] text-slate-500">*Ingresa valores en centímetros (ej: 100 cm = 1 metro)</p></div>)}
+                        {tool === 'slope' && (<div className="animate-fade-in space-y-4"><div className="grid grid-cols-2 gap-3 mb-4"><div className="bg-slate-900 p-4 rounded-xl border border-slate-700 text-center"><div className="text-3xl font-black text-orange-400">{slopePct.toFixed(1)}%</div><div className="text-[10px] font-bold text-slate-500 uppercase mt-1">Porcentaje</div></div><div className="bg-slate-900 p-4 rounded-xl border border-slate-700 text-center"><div className="text-3xl font-black text-white">{slopeDeg.toFixed(2)}°</div><div className="text-[10px] font-bold text-slate-500 uppercase mt-1">Grados</div></div><div className="col-span-2 bg-slate-900 p-3 rounded-xl border border-slate-700 text-center flex items-center justify-center gap-4"><span className="text-xs text-slate-400 uppercase font-bold">Relación Obra (1:x)</span><span className="text-2xl font-black text-cyan-400">1 : {slopeRatio.toFixed(1)}</span></div></div><FieldInput label="Desnivel (Altura)" value={slopeData.rise} onChange={(v) => setSlopeData({...slopeData, rise: v})} unit="cm" /><FieldInput label="Distancia Horizontal" value={slopeData.dist} onChange={(v) => setSlopeData({...slopeData, dist: v})} unit="Metros" /><div className="text-center text-xs text-slate-500 mt-2">Ejemplo: Baja 30 cm en 10 metros.</div></div>)}
+                        {tool === 'talud' && (<div className="animate-fade-in space-y-4"><div className="relative bg-slate-900 rounded-xl border border-slate-700/50 h-40 flex items-center justify-center overflow-hidden shadow-inner mb-4"><svg viewBox="0 0 300 150" className="absolute w-full h-full p-4"><path d="M50 20 L50 120 L250 120 L50 20" fill="rgba(249, 115, 22, 0.1)" stroke="#f97316" strokeWidth="2" /><line x1="50" y1="20" x2="50" y2="120" stroke="white" strokeDasharray="4 4" /><text x="40" y="80" textAnchor="end" fill="white" fontSize="12" fontWeight="bold">H={taludHM.toFixed(2)}m</text><text x="150" y="140" textAnchor="middle" fill="#f97316" fontSize="12" fontWeight="bold">Largo = {horizontalM.toFixed(2)}m</text><text x="100" y="100" textAnchor="middle" fill="white" fontSize="10" transform="rotate(-25)">1:{taludData.ratio}</text></svg></div><div className="bg-orange-900/20 border border-orange-500/30 p-3 rounded-xl flex items-center justify-between mb-4"><div className="text-xs text-orange-200 uppercase font-bold">Desarrollo Horizontal</div><div className="text-2xl font-black text-white">{horizontalM.toFixed(2)} m</div></div><FieldInput label="Altura Talud" value={taludData.h} onChange={(v) => setTaludData({...taludData, h: v})} unit="cm" /><div className="space-y-2"><label className="text-xs font-bold text-slate-400 uppercase ml-1">Relación (V:H)</label><div className="flex gap-2"><button onClick={() => setTaludData({...taludData, ratio: 0.5})} className={`flex-1 py-2 rounded border border-slate-700 text-sm font-bold ${taludData.ratio === 0.5 ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-400'}`}>2:1</button><button onClick={() => setTaludData({...taludData, ratio: 1.0})} className={`flex-1 py-2 rounded border border-slate-700 text-sm font-bold ${taludData.ratio === 1.0 ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-400'}`}>1:1</button><button onClick={() => setTaludData({...taludData, ratio: 1.5})} className={`flex-1 py-2 rounded border border-slate-700 text-sm font-bold ${taludData.ratio === 1.5 ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-400'}`}>1:1.5</button><button onClick={() => setTaludData({...taludData, ratio: 2.0})} className={`flex-1 py-2 rounded border border-slate-700 text-sm font-bold ${taludData.ratio === 2.0 ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-400'}`}>1:2</button></div><div className="mt-2"><FieldInput label="O Relación Personalizada (1:x)" value={taludData.ratio} onChange={(v) => setTaludData({...taludData, ratio: v})} unit="x" /></div></div></div>)}
+                        {tool === 'level' && <WaterLevelTool />}
+                    </div>
+                </div>
+            );
+        };
+        const GeometryEngineeringModule = () => {
+            const [activeTab, setActiveTab] = useState('areas');
+            const [engTool, setEngTool] = useState('concrete');
+            const [geoShape, setGeoShape] = useState('rect');
+            const [gDim, setGDim] = useState({ l: 8.5, w: 3.2, b: 6.0, h: 2.5, B: 10.0, D: 3.0 });
+            const [volShape, setVolShape] = useState('box'); const [vDim, setVDim] = useState({ l: 12.0, w: 2.0, h: 1.2, D: 1.5, pl: 4.0, pw: 4.0, ph: 3.0, cd: 2.0, ch: 3.0, a1: 15.0, a2: 9.0, al: 4.0 });
+            let areaVal = 0; let formulaText = ""; let explainText = ""; let usageText = "";
+            switch(geoShape) {
+                case 'rect': areaVal = gDim.l * gDim.w;
+                formulaText = "Largo × Ancho"; explainText = "Multiplicas lo largo por lo ancho y listo.";
+                usageText = "Losas, radieres, muros, pisos."; break;
+                case 'tri': areaVal = (gDim.b * gDim.h) / 2;
+                formulaText = "(Base × Altura) ÷ 2"; explainText = "Multiplicas base por altura y lo divides por 2.";
+                usageText = "Frontones, taludes, remates."; break;
+                case 'trap': areaVal = ((gDim.B + gDim.b) * gDim.h) / 2;
+                formulaText = "(Base My + Base Mn) × Altura ÷ 2"; explainText = "Promedio de bases por la altura.";
+                usageText = "Excavaciones, plataformas."; break;
+                case 'circ': areaVal = Math.PI * Math.pow(gDim.D / 2, 2); formulaText = "π × Radio²";
+                explainText = "Radio al cuadrado por Pi."; usageText = "Pozos, cámaras."; break;
+            }
+
+            let volVal = 0; let vFormula = "";
+            let vExplain = ""; let vUsage = "";
+            switch(volShape) {
+                case 'box': volVal = vDim.l * vDim.w * vDim.h;
+                vFormula = "Largo × Ancho × Altura"; vExplain = "Multiplicas las tres medidas."; vUsage = "Zanjas, fundaciones corridas, radieres."; break;
+                case 'cyl': volVal = Math.PI * Math.pow(vDim.D / 2, 2) * vDim.h; vFormula = "π × Radio² × Altura";
+                vExplain = "El área del círculo por la profundidad."; vUsage = "Pozos, pilas, cámaras, excav. circulares."; break;
+                case 'pyr': const areaBase = vDim.pl * vDim.pw; volVal = (areaBase * vDim.ph) / 3;
+                vFormula = "(Largo Base × Ancho Base × Altura) ÷ 3";
+                vExplain = "Es un tercio de un prisma del mismo tamaño."; vUsage = "Fundaciones especiales, dados, bases."; break;
+                case 'cone': volVal = (Math.PI * Math.pow(vDim.cd / 2, 2) * vDim.ch) / 3;
+                vFormula = "(π × Radio² × Altura) ÷ 3"; vExplain = "Es un tercio de un cilindro.";
+                vUsage = "Tolvas, excavaciones cónicas, pilas."; break;
+                case 'avg': volVal = ((vDim.a1 + vDim.a2) / 2) * vDim.al;
+                vFormula = "(Área 1 + Área 2) ÷ 2 × Largo";
+                vExplain = "Promedio de las dos caras por el largo."; vUsage = "Excavaciones irregulares, caminos, zanjas."; break;
+            }
+
+            const DrawGeo = () => { const c = "#22d3ee";
+            const s = "#0e7490"; switch(geoShape) { case 'rect': return <rect x="50" y="40" width="200" height="70" fill={c} fillOpacity="0.2" stroke={s} strokeWidth="2" />;
+            case 'tri': return <polygon points="150,20 250,130 50,130" fill={c} fillOpacity="0.2" stroke={s} strokeWidth="2" />;
+            case 'trap': return <polygon points="100,30 200,30 260,120 40,120" fill={c} fillOpacity="0.2" stroke={s} strokeWidth="2" />;
+            case 'circ': return <circle cx="150" cy="75" r="60" fill={c} fillOpacity="0.2" stroke={s} strokeWidth="2" />; default: return null; } };
+            const DrawVol = () => { const c = "#facc15"; const s = "#ca8a04";
+            switch(volShape) { case 'box': return (<g><path d="M50 40 L150 40 L200 20 L100 20 Z" fill={c} fillOpacity="0.4" stroke={s}/><rect x="50" y="40" width="100" height="80" fill={c} fillOpacity="0.1" stroke={s} strokeWidth="2"/><path d="M150 40 L200 20 L200 100 L150 120 Z" fill={c} fillOpacity="0.3" stroke={s}/></g>);
+            case 'cyl': return (<g><ellipse cx="150" cy="30" rx="60" ry="15" fill={c} fillOpacity="0.4" stroke={s} strokeWidth="2"/><path d="M90 30 L90 120 A60 15 0 0 0 210 120 L210 30" fill={c} fillOpacity="0.1" stroke={s} strokeWidth="2"/><ellipse cx="150" cy="120" rx="60" ry="15" fill="none" stroke={s} strokeDasharray="4 2"/></g>);
+            case 'pyr': return (<g><path d="M150 20 L50 120 L250 120 Z" fill={c} fillOpacity="0.1" stroke={s} strokeWidth="2"/><path d="M150 20 L150 120" stroke={s} strokeDasharray="2 2"/><path d="M150 20 L200 100" stroke={s} opacity="0.5"/></g>);
+            case 'cone': return (<g><path d="M150 20 L70 120 A80 15 0 0 0 230 120 Z" fill={c} fillOpacity="0.1" stroke={s} strokeWidth="2"/><ellipse cx="150" cy="120" rx="80" ry="15" fill="none" stroke={s} strokeDasharray="4 2"/><path d="M150 20 L150 120" stroke={s} strokeDasharray="2 2"/></g>);
+            case 'avg': return (<g><path d="M50 40 L100 110 L120 100 L80 30 Z" fill={c} fillOpacity="0.3" stroke={s}/><path d="M180 50 L230 100 L250 90 L210 40 Z" fill={c} fillOpacity="0.3" stroke={s}/><line x1="80" y1="30" x2="210" y2="40" stroke={s} strokeDasharray="4 4"/><line x1="100" y1="110" x2="230" y2="100" stroke={s} strokeDasharray="4 4"/><text x="150" y="80" textAnchor="middle" fill={s} fontSize="10">Largo</text></g>);
+            default: return null; } };
+
+            return (
+                <div className="animate-fade-in">
+                    <div className="flex items-center gap-3 mb-6"><div className="bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-700"><Box className="w-6 h-6 text-white" /></div><div><h2 className="text-2xl font-bold text-white">Geometría & Ing.</h2><p className="text-xs text-slate-400">Cálculo 2D, 3D y Materiales</p></div></div>
+                    <div className="flex p-1 bg-slate-900 rounded-xl mb-6 border border-slate-700 overflow-x-auto shadow-inner"><button onClick={() => setActiveTab('areas')} className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all whitespace-nowrap uppercase tracking-wider ${activeTab === 'areas' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>Áreas (2D)</button><button onClick={() => setActiveTab('volumes')} className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all whitespace-nowrap uppercase tracking-wider ${activeTab === 'volumes' ? 'bg-yellow-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>Volumen (3D)</button><button onClick={() => setActiveTab('engineering')} className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all whitespace-nowrap uppercase tracking-wider ${activeTab === 'engineering' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}>Ingeniería</button></div>
+                    <div className="min-h-[300px]">
+                        {activeTab === 'areas' && (<div className="animate-fade-in space-y-6"><div className="grid grid-cols-4 gap-2"><button onClick={() => setGeoShape('rect')} className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${geoShape === 'rect' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}><Square size={20}/><span className="text-[9px] font-bold uppercase">Rect</span></button><button onClick={() => setGeoShape('tri')} className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${geoShape === 'tri' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}><Triangle size={20}/><span className="text-[9px] font-bold uppercase">Triáng</span></button><button onClick={() => setGeoShape('trap')} className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${geoShape === 'trap' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}><img src="https://img.icons8.com/ios-filled/50/94a3b8/trapezoid.png" className={`w-5 h-5 ${geoShape === 'trap' ? 'invert sepia saturate-500 hue-rotate-150 brightness-100' : 'opacity-60'}`} alt="trap"/><span className="text-[9px] font-bold uppercase">Trap</span></button><button onClick={() => setGeoShape('circ')} className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${geoShape === 'circ' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}><Circle size={20}/><span className="text-[9px] font-bold uppercase">Círc</span></button></div><div className="relative bg-slate-900 rounded-xl border border-slate-700/50 h-48 flex items-center justify-center overflow-hidden shadow-inner"><svg viewBox="0 0 300 150" className="absolute w-full h-full p-4 opacity-80"><DrawGeo /></svg><div className="absolute bottom-3 right-3 bg-slate-900/90 backdrop-blur px-4 py-2 rounded-xl border border-slate-700 shadow-xl text-right"><span className="text-3xl font-black text-cyan-400">{areaVal.toFixed(2)}</span><span className="text-xs font-bold text-slate-400 block uppercase">Metros Cuadrados</span></div><div className="absolute top-3 left-3 bg-slate-800/80 px-2 py-1 rounded text-[10px] text-slate-400 border border-slate-700">{geoShape === 'circ' && `Radio: ${(gDim.D/2).toFixed(2)}m`}</div></div><div>{geoShape === 'rect' && (<div className="grid grid-cols-2 gap-3"><FieldInput label="Largo" value={gDim.l} onChange={(v) => setGDim({...gDim, l: v})} unit="m" /><FieldInput label="Ancho" value={gDim.w} onChange={(v) => setGDim({...gDim, w: v})} unit="m" /></div>)}{geoShape === 'tri' && (<div className="grid grid-cols-2 gap-3"><FieldInput label="Base" value={gDim.b} onChange={(v) => setGDim({...gDim, b: v})} unit="m" /><FieldInput label="Altura" value={gDim.h} onChange={(v) => setGDim({...gDim, h: v})} unit="m" /></div>)}{geoShape === 'trap' && (<><div className="grid grid-cols-2 gap-3"><FieldInput label="Base Mayor" value={gDim.B} onChange={(v) => setGDim({...gDim, B: v})} unit="m" /><FieldInput label="Base Menor" value={gDim.b} onChange={(v) => setGDim({...gDim, b: v})} unit="m" /></div><FieldInput label="Altura" value={gDim.h} onChange={(v) => setGDim({...gDim, h: v})} unit="m" /></>)}{geoShape === 'circ' && (<FieldInput label="Diámetro" value={gDim.D} onChange={(v) => setGDim({...gDim, D: v})} unit="m" />)}</div><div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><div className="flex items-start gap-3 mb-3"><Info className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" /><div><h4 className="text-sm font-bold text-white uppercase">Explicado en fácil</h4><p className="text-sm text-slate-300 italic mt-1">"{explainText}"</p></div></div><div className="h-px bg-slate-700 my-3"></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs"><div><span className="text-slate-500 font-bold uppercase block mb-1">Fórmula:</span><span className="font-mono text-cyan-300">{formulaText}</span></div><div><span className="text-slate-500 font-bold uppercase block mb-1">Uso Común:</span><span className="text-slate-300">{usageText}</span></div></div></div></div>)}
+                        {activeTab === 'volumes' && (<div className="animate-fade-in space-y-6"><div className="flex gap-2 overflow-x-auto pb-2"><button onClick={() => setVolShape('box')} className={`p-2 min-w-[60px] rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${volShape === 'box' ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}><Box size={20}/><span className="text-[9px] font-bold uppercase">Prisma</span></button><button onClick={() => setVolShape('cyl')} className={`p-2 min-w-[60px] rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${volShape === 'cyl' ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}><Circle size={20}/><span className="text-[9px] font-bold uppercase">Cilindro</span></button><button onClick={() => setVolShape('pyr')} className={`p-2 min-w-[60px] rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${volShape === 'pyr' ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}><Triangle size={20}/><span className="text-[9px] font-bold uppercase">Pirám</span></button><button onClick={() => setVolShape('cone')} className={`p-2 min-w-[60px] rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${volShape === 'cone' ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}><img src="https://img.icons8.com/ios-filled/50/94a3b8/cone.png" className={`w-5 h-5 ${volShape === 'cone' ? 'invert sepia saturate-1000 hue-rotate-0 brightness-100 text-yellow-400' : 'opacity-60'}`} alt="cone"/><span className="text-[9px] font-bold uppercase">Cono</span></button><button onClick={() => setVolShape('avg')} className={`p-2 min-w-[60px] rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${volShape === 'avg' ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}><Scaling size={20}/><span className="text-[9px] font-bold uppercase">Prom.</span></button></div><div className="relative bg-slate-900 rounded-xl border border-slate-700/50 h-48 flex items-center justify-center overflow-hidden shadow-inner"><svg viewBox="0 0 300 150" className="absolute w-full h-full p-4 opacity-80"><DrawVol /></svg><div className="absolute bottom-3 right-3 bg-slate-900/90 backdrop-blur px-4 py-2 rounded-xl border border-slate-700 shadow-xl text-right"><span className="text-3xl font-black text-yellow-400">{volVal.toFixed(2)}</span><span className="text-xs font-bold text-slate-400 block uppercase">Metros Cúbicos</span></div><div className="absolute top-3 left-3 bg-slate-800/80 px-2 py-1 rounded text-[10px] text-slate-400 border border-slate-700">{volShape === 'cyl' && `Radio: ${(vDim.D/2).toFixed(2)}m`}{volShape === 'cone' && `Radio: ${(vDim.cd/2).toFixed(2)}m`}</div></div><div>{volShape === 'box' && (<><div className="grid grid-cols-2 gap-3"><FieldInput label="Largo" value={vDim.l} onChange={(v) => setVDim({...vDim, l: v})} unit="m" /><FieldInput label="Ancho" value={vDim.w} onChange={(v) => setVDim({...vDim, w: v})} unit="m" /></div><FieldInput label="Profundidad / Altura" value={vDim.h} onChange={(v) => setVDim({...vDim, h: v})} unit="m" /></>)}{volShape === 'cyl' && (<><FieldInput label="Diámetro" value={vDim.D} onChange={(v) => setVDim({...vDim, D: v})} unit="m" /><FieldInput label="Profundidad / Altura" value={vDim.h} onChange={(v) => setVDim({...vDim, h: v})} unit="m" /></>)}{volShape === 'pyr' && (<><div className="bg-slate-800/50 p-2 rounded-lg mb-3 border border-slate-700/50"><span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Dimensiones Base</span><div className="grid grid-cols-2 gap-3"><FieldInput label="Largo Base" value={vDim.pl} onChange={(v) => setVDim({...vDim, pl: v})} unit="m" className="mb-0"/><FieldInput label="Ancho Base" value={vDim.pw} onChange={(v) => setVDim({...vDim, pw: v})} unit="m" className="mb-0"/></div></div><FieldInput label="Altura" value={vDim.ph} onChange={(v) => setVDim({...vDim, ph: v})} unit="m" /></>)}{volShape === 'cone' && (<><FieldInput label="Diámetro Base" value={vDim.cd} onChange={(v) => setVDim({...vDim, cd: v})} unit="m" /><FieldInput label="Altura" value={vDim.ch} onChange={(v) => setVDim({...vDim, ch: v})} unit="m" /></>)}{volShape === 'avg' && (<><div className="grid grid-cols-2 gap-3"><FieldInput label="Área Inicial" value={vDim.a1} onChange={(v) => setVDim({...vDim, a1: v})} unit="m²" /><FieldInput label="Área Final" value={vDim.a2} onChange={(v) => setVDim({...vDim, a2: v})} unit="m²" /></div><FieldInput label="Largo Tramo" value={vDim.al} onChange={(v) => setVDim({...vDim, al: v})} unit="m" /></>)}</div><div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><div className="flex items-start gap-3 mb-3"><Info className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" /><div><h4 className="text-sm font-bold text-white uppercase">Explicado en fácil</h4><p className="text-sm text-slate-300 italic mt-1">"{vExplain}"</p></div></div><div className="h-px bg-slate-700 my-3"></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs"><div><span className="text-slate-500 font-bold uppercase block mb-1">Fórmula:</span><span className="font-mono text-yellow-300">{vFormula}</span></div><div><span className="text-slate-500 font-bold uppercase block mb-1">Uso Común:</span><span className="text-slate-300">{vUsage}</span></div></div></div></div>)}
+                        {activeTab === 'engineering' && (<div className="animate-fade-in"><div className="grid grid-cols-3 gap-2 mb-6"><button onClick={() => setEngTool('concrete')} className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${engTool === 'concrete' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}><Truck size={20} /><span className="text-[9px] font-bold uppercase">Hormigón</span></button><button onClick={() => setEngTool('water')} className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${engTool === 'water' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}><Droplets size={20} /><span className="text-[9px] font-bold uppercase">Corr. Agua</span></button><button onClick={() => setEngTool('interpolation')} className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${engTool === 'interpolation' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}><TrendingUp size={20} /><span className="text-[9px] font-bold uppercase">Interpolar</span></button></div>{engTool === 'concrete' && <ConcreteTool />}{engTool === 'water' && <WaterCorrectionTool />}{engTool === 'interpolation' && <InterpolationTool />}</div>)}
+                    </div>
+                </div>
+            );
+        };
+const SimpleCalculator = () => { 
+            const [display, setDisplay] = useState('0');
+            const [prevValue, setPrevValue] = useState(null); 
+            const [operator, setOperator] = useState(null); 
+            const [history, setHistory] = useState(''); 
+            const [waitingForOperand, setWaitingForOperand] = useState(false);
+            const inputDigit = (digit) => { 
+                if (waitingForOperand) { 
+                    setDisplay(String(digit));
+            setWaitingForOperand(false); 
+                } else { 
+                    setDisplay(display === '0' ? String(digit) : display + digit);
+            } 
+            };
+            const inputDot = () => { 
+                if (waitingForOperand) { 
+                    setDisplay('0.');
+            setWaitingForOperand(false); 
+                } else if (display.indexOf('.') === -1) { 
+                    setDisplay(display + '.');
+            } 
+            };
+            const clear = () => { 
+                setDisplay('0');
+            setPrevValue(null); 
+                setOperator(null); 
+                setHistory(''); 
+                setWaitingForOperand(false); 
+            }; 
+            const inputMath = (type) => {
+                const current = parseFloat(display);
+                let newVal = 0; let symbol = "";
+                switch(type) {
+                    case 'sq': newVal = Math.pow(current, 2); symbol = "sqr"; break;
+                    case 'sqrt': newVal = Math.sqrt(current); symbol = "√"; break;
+                    case 'pi': newVal = Math.PI; symbol = "π"; setDisplay(String(newVal)); setWaitingForOperand(true); return; 
+                    case 'pct': newVal = current / 100; symbol = "%"; break;
+                }
+                const result = parseFloat(newVal.toFixed(8));
+                setDisplay(String(result));
+                setWaitingForOperand(true);
+                setHistory(`${symbol}(${current}) =`);
+            };
+            const performOperation = (nextOperator) => { 
+                const inputValue = parseFloat(display);
+                if (prevValue == null) { 
+                    setPrevValue(inputValue);
+                    setHistory(`${inputValue} ${nextOperator}`); 
+                } else if (operator) { 
+                    const currentValue = prevValue || 0; 
+                    const newValue = calculate(currentValue, inputValue, operator); 
+                    setPrevValue(newValue); 
+                    setDisplay(String(newValue)); 
+                    setHistory(`${newValue} ${nextOperator}`);
+                } 
+                setWaitingForOperand(true); 
+                setOperator(nextOperator); 
+            };
+            const handleEqual = () => { 
+                if (!operator || prevValue == null) return;
+                const inputValue = parseFloat(display); 
+                const result = calculate(prevValue, inputValue, operator); 
+                setHistory(`${prevValue} ${operator} ${inputValue} =`); 
+                setDisplay(String(result)); 
+                setPrevValue(null); 
+                setOperator(null); 
+                setWaitingForOperand(true); 
+            };
+            const calculate = (a, b, op) => { 
+                switch(op) { 
+                    case '+': return parseFloat((a + b).toFixed(4));
+                    case '-': return parseFloat((a - b).toFixed(4)); 
+                    case '×': return parseFloat((a * b).toFixed(4)); 
+                    case '÷': return b !== 0 ? parseFloat((a / b).toFixed(4)) : 'Error'; 
+                    default: return b; 
+                } 
+            };
+            const CalcButton = ({ label, onClick, className = "", variant = "default" }) => { 
+                const baseStyle = "h-16 rounded-xl font-bold text-xl active:scale-95 transition-all shadow-sm border border-slate-700/50 flex items-center justify-center";
+                const variants = { 
+                    default: "bg-slate-800 text-white hover:bg-slate-700", 
+                    number: "bg-slate-900 text-white hover:bg-slate-800", 
+                    operator: "bg-slate-700 text-cyan-400 hover:bg-slate-600 border-slate-600", 
+                    action: "bg-cyan-600 text-white hover:bg-cyan-500 border-cyan-500", 
+                    danger: "bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/30",
+                    scientific: "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border-purple-500/30 text-lg"
+                };
+                return <button onClick={onClick} className={`${baseStyle} ${variants[variant]} ${className}`}>{label}</button>; 
+            }; 
+            return (
+                <div className="space-y-4">
+                    <div className="bg-slate-900 rounded-2xl p-5 text-right border-2 border-slate-700 shadow-inner mb-2">
+                        <div className="text-slate-500 text-sm h-6 font-mono overflow-hidden">{history}</div>
+                        <div className="text-4xl font-mono text-white font-bold tracking-wider overflow-x-auto overflow-y-hidden">{display}</div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3">
+                        <CalcButton label="x²" onClick={() => inputMath('sq')} variant="scientific" />
+                        <CalcButton label="√" onClick={() => inputMath('sqrt')} variant="scientific" />
+                        <CalcButton label="π" onClick={() => inputMath('pi')} variant="scientific" />
+                        <CalcButton label="%" onClick={() => inputMath('pct')} variant="scientific" />
+                        <CalcButton label="C" onClick={clear} variant="danger" />
+                        <CalcButton label="÷" onClick={() => performOperation('÷')} variant="operator" />
+                        <CalcButton label="×" onClick={() => performOperation('×')} variant="operator" />
+                        <CalcButton label={<Delete size={20} />} onClick={() => setDisplay(display.length > 1 ? display.slice(0, -1) : '0')} variant="default" />
+                        <CalcButton label="7" onClick={() => inputDigit(7)} variant="number" />
+                        <CalcButton label="8" onClick={() => inputDigit(8)} variant="number" />
+                        <CalcButton label="9" onClick={() => inputDigit(9)} variant="number" />
+                        <CalcButton label="-" onClick={() => performOperation('-')} variant="operator" />
+                        <CalcButton label="4" onClick={() => inputDigit(4)} variant="number" />
+                        <CalcButton label="5" onClick={() => inputDigit(5)} variant="number" />
+                        <CalcButton label="6" onClick={() => inputDigit(6)} variant="number" />
+                        <CalcButton label="+" onClick={() => performOperation('+')} variant="operator" />
+                        <CalcButton label="1" onClick={() => inputDigit(1)} variant="number" />
+                        <CalcButton label="2" onClick={() => inputDigit(2)} variant="number" />
+                        <CalcButton label="3" onClick={() => inputDigit(3)} variant="number" />
+                        <CalcButton label="=" onClick={handleEqual} className="row-span-2 h-full !text-2xl bg-gradient-to-br from-cyan-600 to-blue-600 border-none shadow-lg shadow-cyan-900/50" variant="action" />
+                        <CalcButton label="0" onClick={() => inputDigit(0)} className="col-span-2" variant="number" />
+                        <CalcButton label="." onClick={inputDot} variant="number" />
+                    </div>
+                </div>
+            );
+        };
+
+        const UnitConverterTool = () => {
+            const [subType, setSubType] = useState('cm_m');
+            const [valA, setValA] = useState('');
+            const [valB, setValB] = useState('');
+            const factors = {
+                'cm_m': { label: 'Longitud', a: 'cm', b: 'm', factor: 0.01 },
+                'mm_cm': { label: 'Longitud', a: 'mm', b: 'cm', factor: 0.1 },
+                'inch_cm': { label: 'Longitud', a: 'pulgadas', b: 'cm', factor: 2.54 },
+                'm2_cm2': { label: 'Área', a: 'm²', b: 'cm²', factor: 10000 },
+                'm3_l': { label: 'Volumen', a: 'm³', b: 'Litros', factor: 1000 },
+                'kg_ton': { label: 'Peso', a: 'kg', b: 'Toneladas', factor: 0.001 }
+            };
+            const current = factors[subType];
+            const handleChangeA = (val) => {
+                setValA(val);
+                if(val === '' || isNaN(parseFloat(val))) { setValB(''); return; }
+                const num = parseFloat(val);
+                setValB((num * current.factor).toLocaleString('en-US', { maximumFractionDigits: 4 }).replace(/,/g, ''));
+            };
+            const handleChangeB = (val) => {
+                setValB(val);
+                if(val === '' || isNaN(parseFloat(val))) { setValA(''); return; }
+                const num = parseFloat(val);
+                setValA((num / current.factor).toLocaleString('en-US', { maximumFractionDigits: 4 }).replace(/,/g, ''));
+            };
+            const handleSwap = () => { if (valB !== '' && !isNaN(parseFloat(valB))) { handleChangeA(valB); } };
+            return (
+                <div className="animate-fade-in space-y-6">
+                    <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 mb-4">
+                        <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Tipo de Conversión</label>
+                        <select value={subType} onChange={(e) => { setSubType(e.target.value); setValA(''); setValB(''); }} className="w-full bg-slate-900 border border-slate-700 text-white text-lg font-bold py-3 px-4 rounded-xl focus:outline-none focus:border-cyan-500 transition-all">
+                            <optgroup label="Longitud"><option value="cm_m">Centímetros ↔ Metros</option><option value="mm_cm">Milímetros ↔ Centímetros</option><option value="inch_cm">Pulgadas ↔ Centímetros</option></optgroup>
+                            <optgroup label="Área"><option value="m2_cm2">Metros² ↔ Centímetros²</option></optgroup>
+                            <optgroup label="Volumen"><option value="m3_l">Metros³ ↔ Litros</option></optgroup>
+                            <optgroup label="Peso"><option value="kg_ton">Kilogramos ↔ Toneladas</option></optgroup>
+                        </select>
+                    </div>
+                    <div className="relative bg-slate-900 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col gap-4 items-center">
+                        <div className="w-full"><label className="text-xs font-bold text-cyan-400 uppercase mb-1 block ml-1">{current.a}</label><input type="number" value={valA} onChange={(e) => handleChangeA(e.target.value)} placeholder="0" className="w-full bg-slate-800 border-2 border-slate-600 focus:border-cyan-500 text-white text-3xl font-black p-4 rounded-xl focus:outline-none text-center transition-all" /></div>
+                        <div onClick={handleSwap} className="bg-slate-700 hover:bg-cyan-600 cursor-pointer p-2 rounded-full border border-slate-600 hover:border-cyan-400 z-10 -my-6 transition-all active:scale-90 shadow-lg group"><ArrowRightLeft className="text-white w-6 h-6 group-hover:rotate-180 transition-transform duration-300" /></div>
+                        <div className="w-full"><label className="text-xs font-bold text-yellow-400 uppercase mb-1 block ml-1">{current.b}</label><input type="number" value={valB} onChange={(e) => handleChangeB(e.target.value)} placeholder="0" className="w-full bg-slate-800 border-2 border-slate-600 focus:border-yellow-500 text-white text-3xl font-black p-4 rounded-xl focus:outline-none text-center transition-all" /></div>
+                    </div>
+                    <div className="text-center text-xs text-slate-500 uppercase font-bold tracking-widest">1 {current.a} = {current.factor} {current.b}</div>
+                </div>
+            );
+        };
+
+        const AlgebraTool = () => {
+            const [inputEq, setInputEq] = useState('2(t+2) - 5 = 5(t-4) + 13');
+            const [result, setResult] = useState(null);
+            const [steps, setSteps] = useState([]);
+
+            const solveEquation = () => {
+                if(!inputEq.includes('=')) {
+                    setResult(null); setSteps(['Error: Falta el signo "="']); return;
+                }
+                try {
+                    // LIMPIEZA PROFUNDA (Soporte Copiar/Pegar)
+                    let cleanEq = inputEq.toLowerCase()
+                        .replace(/−/g, '-')  // Menos largo (web/word)
+                        .replace(/–/g, '-')  // Guion medio
+                        .replace(/—/g, '-')  // Guion largo
+                        .replace(/\s+/g, ''); // Quitar espacios
+                    
+                    // 1. Detectar Variable
+                    const varMatch = cleanEq.match(/[a-z]/i);
+                    const variableName = varMatch ? varMatch[0] : 'x';
+                    cleanEq = cleanEq.replace(/[a-z]/g, 'x'); // Estandarizar a 'x'
+
+                    // --- PASO 1: EXPANSIÓN SEGURA (Distributiva) ---
+                    const expandP = (eqStr) => {
+                        let expanded = eqStr;
+                        const regex = /([+-]?\d*\.?\d*)\s*\(([^)]+)\)/g;
+                        
+                        while (expanded.match(regex)) {
+                            expanded = expanded.replace(regex, (match, multStr, inside) => {
+                                let mult = 1;
+                                if (multStr === '' || multStr === '+') mult = 1;
+                                else if (multStr === '-') mult = -1;
+                                else mult = parseFloat(multStr);
+                                if (isNaN(mult)) mult = 1;
+
+                                const innerTerms = parseSide(inside);
+                                const outX = innerTerms.x * mult;
+                                const outN = innerTerms.n * mult;
+                                
+                                const strX = outX !== 0 ? (outX > 0 ? "+" : "") + outX + "x" : "";
+                                const strN = outN !== 0 ? (outN > 0 ? "+" : "") + outN : "";
+                                return (strX + strN) || "0"; 
+                            });
+                        }
+                        return expanded;
+                    };
+
+                    // --- PASO 2: PARSER DE TÉRMINOS ROBUSTO ---
+                    const parseSide = (str) => {
+                        // Reemplazar '-' por '+-' para separar, excepto al inicio
+                        let safeStr = str.replace(/-/g, '+-');
+                        if (safeStr.startsWith('+-')) safeStr = safeStr.substring(1) === '' ? '-' : '-' + safeStr.substring(2);
+                        if (safeStr.startsWith('+')) safeStr = safeStr.substring(1);
+
+                        const parts = safeStr.split('+').filter(p => p !== '');
+                        let totalX = 0; let totalNum = 0;
+
+                        parts.forEach(part => {
+                            if (part.includes('x')) {
+                                let coefStr = part.replace('x', '');
+                                if (coefStr === '' || coefStr === '+') coefStr = '1';
+                                else if (coefStr === '-') coefStr = '-1';
+                                totalX += parseFloat(coefStr);
+                            } else {
+                                if (part === '-') return;
+                                totalNum += parseFloat(part);
+                            }
+                        });
+                        return { x: totalX, n: totalNum };
+                    };
+
+                    const [rawLeft, rawRight] = cleanEq.split('=');
+                    const leftExpanded = expandP(rawLeft);
+                    const rightExpanded = expandP(rawRight);
+
+                    const left = parseSide(leftExpanded);
+                    const right = parseSide(rightExpanded);
+
+                    // 3. Resolver
+                    const finalX = left.x - right.x;
+                    const finalNum = right.n - left.n;
+
+                    let stepLog = [];
+                    stepLog.push(`1. Simplificar Lados (Expandir paréntesis):`);
+                    stepLog.push(`   • Izq: ${left.x}${variableName} + (${left.n})`);
+                    stepLog.push(`   • Der: ${right.x}${variableName} + (${right.n})`);
+                    stepLog.push(`2. Agrupar ${variableName} a la izquierda: (${left.x} - ${right.x})${variableName} = ${finalX}${variableName}`);
+                    stepLog.push(`3. Agrupar Números a la derecha: ${right.n} - (${left.n}) = ${finalNum}`);
+
+                    if (Math.abs(finalX) < 0.000001) {
+                        if (Math.abs(finalNum) < 0.000001) {
+                            setResult("Infinitas soluciones");
+                            setSteps([...stepLog, `0 = 0 (Identidad)`]);
+                        } else {
+                            setResult("Sin solución");
+                            setSteps([...stepLog, `0 = ${finalNum} (Imposible)`]);
+                        }
+                    } else {
+                        const xVal = finalNum / finalX;
+                        setResult(`${variableName} = ${xVal.toFixed(2)}`);
+                        
+                        const isInt = Math.abs(xVal - Math.round(xVal)) < 0.0001;
+                        const displayVal = isInt ? Math.round(xVal) : xVal.toFixed(2);
+                        if (isInt && displayVal.toString() !== xVal.toFixed(2)) {
+                             setResult(`${variableName} = ${displayVal}`);
+                        }
+                        
+                        stepLog.push(`4. Despejar: ${variableName} = ${finalNum} / ${finalX}`);
+                        setSteps(stepLog);
+                    }
+
+                } catch (e) {
+                    setResult("Error");
+                    setSteps(["Revisa el formato. (Usa decimales para fracciones: 0.5x)"]);
+                }
+            };
+
+            return (
+                <div className="animate-fade-in">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 mb-6 shadow-lg">
+                        <label className="text-xs font-bold text-cyan-400 uppercase mb-2 block ml-1">Escribe tu ecuación completa:</label>
+                        <div className="flex gap-2">
+                            <input 
+                                type="text" 
+                                value={inputEq} 
+                                onChange={(e) => setInputEq(e.target.value)} 
+                                placeholder="Ej: 2(t+2) - 5 = 5(t-4) + 13" 
+                                className="flex-1 bg-slate-800 border-2 border-slate-600 focus:border-cyan-500 text-white text-xl font-mono p-3 rounded-xl focus:outline-none transition-all"
+                                onKeyDown={(e) => e.key === 'Enter' && solveEquation()}
+                            />
+                            <button onClick={solveEquation} className="bg-cyan-600 hover:bg-cyan-500 text-white p-3 rounded-xl font-bold transition-colors shadow-lg active:scale-95">
+                                CALCULAR
+                            </button>
+                        </div>
+                        <div className="mt-3 flex items-start gap-2 bg-yellow-900/20 p-2 rounded-lg border border-yellow-600/30">
+                            <AlertTriangle size={14} className="text-yellow-500 shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-yellow-200">
+                                <strong>Nota:</strong> Solo ecuaciones lineales. Para fracciones como x/2, escribe <strong>0.5x</strong>. Si copias de la web y da error, intenta escribirlo manualmente.
+                            </p>
+                        </div>
+                    </div>
+
+                    {result && (
+                        <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-lg animate-slide-up">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Resultado Final</h4>
+                                    <div className="text-4xl font-black text-cyan-400">{result}</div>
+                                </div>
+                                <div className="bg-slate-900 p-2 rounded-lg border border-slate-700">
+                                    <FunctionSquare className="text-cyan-400 w-6 h-6" />
+                                </div>
+                            </div>
+                            
+                            <div className="mt-4 pt-4 border-t border-slate-700/50">
+                                <h5 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Análisis Paso a Paso</h5>
+                                <ul className="space-y-1">
+                                    {steps.map((s, i) => (
+                                        <li key={i} className="text-xs text-slate-300 font-mono pl-2 border-l-2 border-slate-600 py-0.5">{s}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+const SteelTool = () => { const [dims, setDims] = useState({ l: 6.0, w: 0.20, h: 0.40 });
+            const [mainBars, setMainBars] = useState({ qty: 4, diam: 12 }); const [stirrups, setStirrups] = useState({ diam: 8, sep: 0.20 });
+            const [showWaste, setShowWaste] = useState(true); const weights = { 6: 0.22, 8: 0.40, 10: 0.62, 12: 0.89, 16: 1.58 };
+            const wasteFactor = showWaste ? 1.05 : 1.00; const mainLengthTotal = dims.l * mainBars.qty * wasteFactor;
+            const mainWeight = mainLengthTotal * weights[mainBars.diam]; const cover = 0.05; const stirrupW = Math.max(0.10, dims.w - cover);
+            const stirrupH = Math.max(0.10, dims.h - cover); const stirrupLen = (stirrupW + stirrupH) * 2 + 0.10;
+            const stirrupCount = Math.ceil(dims.l / stirrups.sep) + 1; const stirrupTotalLen = stirrupCount * stirrupLen * wasteFactor;
+            const stirrupWeight = stirrupTotalLen * weights[stirrups.diam]; const totalWeight = mainWeight + stirrupWeight;
+            const DrawCrossSection = () => (<svg viewBox="0 0 200 200" className="w-full h-full p-4 relative z-10"><rect x="40" y="20" width="120" height="160" fill="rgba(255,255,255,0.1)" stroke="#475569" strokeWidth="2" /><rect x="55" y="35" width="90" height="130" fill="none" stroke="#facc15" strokeWidth="3" rx="4" /><circle cx="60" cy="40" r="6" fill="#38bdf8" /><circle cx="140" cy="40" r="6" fill="#38bdf8" /><circle cx="60" cy="160" r="6" fill="#38bdf8" /><circle cx="140" cy="160" r="6" fill="#38bdf8" />{mainBars.qty > 4 && <circle cx="100" cy="40" r="6" fill="#38bdf8" />}{mainBars.qty > 5 && <circle cx="100" cy="160" r="6" fill="#38bdf8" />}<text x="100" y="15" textAnchor="middle" fill="white" fontSize="10">{dims.w}m</text><text x="25" y="100" textAnchor="middle" fill="white" fontSize="10" transform="rotate(-90, 25, 100)">{dims.h}m</text></svg>);
+            return (<div><div className="w-full h-48 bg-slate-900 rounded-xl mb-6 flex items-center justify-center relative overflow-hidden border border-slate-700/50 shadow-inner"><div className="absolute left-0 top-0 h-full w-1/2 flex items-center justify-center"><DrawCrossSection /></div><div className="absolute right-4 top-4 bottom-4 w-1/2 flex flex-col justify-center items-end gap-3 z-20"><div className="bg-slate-900/90 backdrop-blur px-4 py-2 rounded-xl border border-slate-700 shadow-xl text-right w-full"><span className="text-3xl font-black text-blue-400">{totalWeight.toFixed(2)}</span><span className="text-xs font-bold text-slate-400 block uppercase">{showWaste ? "Total + 5%" : "Peso Neto"}</span></div><div className="space-y-1 w-full bg-slate-900/50 p-2 rounded-lg border border-slate-800"><div className="flex justify-between text-xs text-blue-200 border-b border-slate-700 pb-1"><span className="flex items-center gap-1">Fierro Ø{mainBars.diam}</span><span className="font-bold">{mainWeight.toFixed(2)} kg</span></div><div className="flex justify-between text-xs text-yellow-400 border-b border-slate-700 pb-1 mt-1"><span className="flex items-center gap-1">Estribo Ø{stirrups.diam}</span><span className="font-bold">{stirrupWeight.toFixed(2)} kg</span></div></div></div></div><div className="animate-fade-in space-y-4"><SectionTitle>1. Dimensiones</SectionTitle><FieldInput label="Largo" value={dims.l} onChange={(v) => setDims({...dims, l: v})} unit="Metros" /><div className="grid grid-cols-2 gap-3"><FieldInput label="Ancho" value={dims.w} onChange={(v) => setDims({...dims, w: v})} unit="Metros" step={0.05} /><FieldInput label="Alto" value={dims.h} onChange={(v) => setDims({...dims, h: v})} unit="Metros" step={0.05} /></div><div className="grid grid-cols-2 gap-4"><div className="col-span-2 sm:col-span-1 bg-slate-900/50 p-3 rounded-xl border border-blue-500/30"><div className="flex items-center gap-2 mb-2 text-blue-300"><Layers size={16} /><span className="text-xs font-bold uppercase">Fierro Largo</span></div><div className="mb-3"><label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Cantidad</label><div className="flex items-center gap-2"><button onClick={() => setMainBars({...mainBars, qty: Math.max(4, mainBars.qty - 1)})} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg text-white border border-slate-700"><Minus size={14}/></button><span className="text-lg font-bold text-white flex-1 text-center">{mainBars.qty}</span><button onClick={() => setMainBars({...mainBars, qty: mainBars.qty + 1})} className="w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg text-white border border-slate-700"><Plus size={14}/></button></div></div><SelectField label="Diámetro" value={mainBars.diam} onChange={(val) => setMainBars({...mainBars, diam: parseInt(val)})} options={[{value: 8, label: 'Ø 8 mm'},{value: 10, label: 'Ø 10 mm'},{value: 12, label: 'Ø 12 mm'},{value: 16, label: 'Ø 16 mm'}]} /></div><div className="col-span-2 sm:col-span-1 bg-slate-900/50 p-3 rounded-xl border border-yellow-500/30"><div className="flex items-center gap-2 mb-2 text-yellow-400"><Box size={16} /><span className="text-xs font-bold uppercase">Estribos</span></div><SelectField label="Diámetro" value={stirrups.diam} onChange={(val) => setStirrups({...stirrups, diam: parseInt(val)})} options={[{value: 6, label: 'Ø 6 mm'},{value: 8, label: 'Ø 8 mm'},{value: 10, label: 'Ø 10 mm'}]} /><div><label className="text-xs font-bold text-slate-400 uppercase mb-1.5 block ml-1">Separación</label><div className="relative"><select value={stirrups.sep} onChange={(e) => setStirrups({...stirrups, sep: parseFloat(e.target.value)})} className="w-full bg-slate-900/80 border border-slate-700 text-white rounded-xl py-3 pl-4 pr-10 appearance-none focus:outline-none focus:border-cyan-500 transition-all text-base"><option value={0.15}>a 15 cm</option><option value={0.20}>a 20 cm</option><option value={0.25}>a 25 cm</option></select></div></div></div></div><div className="mt-4 pt-4 border-t border-slate-700/50 flex justify-between items-center"><label className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2"><Info size={14} /> Incluir 5% Desperdicio</label><button onClick={() => setShowWaste(!showWaste)} className={`w-12 h-6 rounded-full transition-colors relative ${showWaste ? 'bg-cyan-600' : 'bg-slate-700'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${showWaste ? 'left-7' : 'left-1'}`}></div></button></div></div></div>); };
+        const BrickTool = () => { const [wallDims, setWallDims] = useState({ l: 3.0, h: 2.4 });
+            const [brickDims, setBrickDims] = useState({ l: 28.5, h: 4.5, joint: 1.8, name: "Ladrillo Fiscal Especial" });
+            const [preset, setPreset] = useState('fiscal_especial'); const [waste, setWaste] = useState(1.05);
+            const presets = { fiscal_especial: { name: "Fiscal Especial (28.5x4.5)", l: 28.5, h: 4.5, joint: 1.8, color: "#ea580c" }, fiscal_std: { name: "Fiscal Estándar (29x7)", l: 29.0, h: 7.0, joint: 1.5, color: "#c2410c" }, block_14: { name: "Bloque 14 (39x19)", l: 39.0, h: 19.0, joint: 1.5, color: "#94a3b8" }, block_19: { name: "Bloque 19 (39x19)", l: 39.0, h: 19.0, joint: 1.5, color: "#64748b" }, custom: { name: "Personalizado...", l: 0, h: 0, joint: 0, color: "#10b981" } };
+            const handlePresetChange = (val) => { setPreset(val); if (val !== 'custom') { const p = presets[val];
+            setBrickDims({ l: p.l, h: p.h, joint: p.joint, name: p.name }); } }; const handleCustomChange = (field, val) => { setPreset('custom');
+            setBrickDims(prev => ({ ...prev, [field]: val })); }; const areaMuro = (parseFloat(wallDims.l) || 0) * (parseFloat(wallDims.h) || 0);
+            const L_m = (parseFloat(brickDims.l) || 0) / 100, H_m = (parseFloat(brickDims.h) || 0) / 100, J_m = (parseFloat(brickDims.joint) || 0) / 100;
+            let unitsPerM2 = 0; if (L_m > 0 && H_m > 0) { unitsPerM2 = 1 / ((L_m + J_m) * (H_m + J_m));
+            } const totalUnits = Math.ceil(areaMuro * unitsPerM2 * waste); const DrawWall = () => { const l = parseFloat(wallDims.l) || 1, h = parseFloat(wallDims.h) || 1, ratio = l / h; let wDraw, hDraw;
+            if (ratio > 2) { wDraw = 280; hDraw = 280 / ratio;
+            } else if (ratio < 0.5) { hDraw = 140; wDraw = 140 * ratio;
+            } else { hDraw = 130; wDraw = 130 * ratio; if (wDraw > 280) { wDraw = 280;
+            hDraw = 280 / ratio; } } const color = presets[preset]?.color || "#ea580c";
+            return (<svg viewBox="0 0 300 160" className="w-full h-full relative z-10 p-4"><rect x={(300-wDraw)/2 + 5} y={(160-hDraw)/2 + 5} width={wDraw} height={hDraw} fill="rgba(0,0,0,0.5)" rx="4" /><rect x={(300-wDraw)/2} y={(160-hDraw)/2} width={wDraw} height={hDraw} fill={color} stroke="rgba(255,255,255,0.2)" strokeWidth="2" rx="2" /><text x="150" y={(160-hDraw)/2 - 10} textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">{l}m Largo</text><defs><pattern id="brickPattern" width="20" height="10" patternUnits="userSpaceOnUse"><rect width="18" height="8" fill="rgba(255,255,255,0.15)" /></pattern></defs><rect x={(300-wDraw)/2} y={(160-hDraw)/2} width={wDraw} height={hDraw} fill="url(#brickPattern)" /></svg>);
+            }; return (<div><div className="w-full h-48 bg-slate-900 rounded-xl mb-6 overflow-hidden relative border border-slate-700/50 flex flex-col items-center justify-center shadow-inner"><div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-slate-900"></div><DrawWall /><div className="absolute bottom-4 right-4 flex flex-col items-end gap-2 z-20"><div className="bg-slate-900/90 backdrop-blur px-4 py-2 rounded-xl border border-slate-700 shadow-xl text-right"><span className="text-3xl font-black text-orange-500">{totalUnits}</span><span className="text-xs font-bold text-slate-400 block uppercase">Ladrillos</span></div><div className="bg-slate-900/90 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700 shadow-xl text-right flex flex-col"><span className="text-lg font-bold text-slate-200">{unitsPerM2.toFixed(2)}</span><span className="text-[10px] font-bold text-slate-400 ml-1">unidades / m²</span></div></div></div><div className="animate-fade-in space-y-2"><FieldInput label="Largo Muro" value={wallDims.l} onChange={(v) => setWallDims({...wallDims, l: v})} unit="Metros" /><FieldInput label="Alto Muro" value={wallDims.h} onChange={(v) => setWallDims({...wallDims, h: v})} unit="Metros" /><div className="mt-6"><SectionTitle>Configuración del Ladrillo</SectionTitle><div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 mb-4"><label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Tipo de Material</label><select value={preset} onChange={(e) => handlePresetChange(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white text-lg font-bold py-3 px-4 rounded-xl focus:outline-none focus:border-cyan-500">{Object.entries(presets).map(([key, t]) => (<option key={key} value={key}>{t.name}</option>))}</select></div><div className="grid grid-cols-2 gap-3"><FieldInput label="Largo Ladrillo" value={brickDims.l} onChange={(v) => handleCustomChange('l', v)} unit="cm" step={0.5} className="mb-0"/><FieldInput label="Alto Ladrillo" value={brickDims.h} onChange={(v) => handleCustomChange('h', v)} unit="cm" step={0.5} className="mb-0"/><FieldInput label="Cantería (Junta)" value={brickDims.joint} onChange={(v) => handleCustomChange('joint', v)} unit="cm" step={0.1} className="mb-0 col-span-2 border-cyan-500/30 bg-cyan-900/10"/></div><div className="text-right text-[10px] text-slate-500 mt-1 italic">Ajusta la cantería para igualar tu Excel (Ref: 1.8cm ≈ 52.4 un/m²)</div></div><div className="mt-6 pt-4 border-t border-slate-700/50"><SelectField label="Factor de Pérdida (Desperdicio)" value={waste} onChange={setWaste} options={[{value: 1.0, label: '0% (Exacto)'},{value: 1.05, label: '5% (Recomendado)'},{value: 1.10, label: '10% (Seguridad)'}]} /></div></div></div>); };
+        const DrywallTool = () => { const [dims, setDims] = useState({ l: 3.0, h: 2.4 });
+            const [spacing, setSpacing] = useState(60); const [sides, setSides] = useState(1); const [waste, setWaste] = useState(1.05);
+            const totalLengthTrack = dims.l * 2; const trackUnits = Math.ceil(totalLengthTrack / 3);
+            const studCount = Math.ceil(dims.l / (spacing / 100)) + 1; const studUnits = studCount; const wallArea = dims.l * dims.h;
+            const totalCladdingArea = wallArea * sides; const boardCount = Math.ceil((totalCladdingArea * waste) / 2.88);
+            const screwFraming = Math.ceil(studCount * 4 * 1.1); const screwBoard = Math.ceil(boardCount * 30 * 1.1);
+            const insulationM2 = (wallArea * waste).toFixed(1); const DrawFrame = () => { const w = 280, h = 120, gap = w / (studCount - 1);
+            return (<svg viewBox="0 0 300 140" className="w-full h-full p-4 relative z-10"><rect x="10" y="10" width={w} height="10" fill="#94a3b8" stroke="white" strokeWidth="1" /><rect x="10" y={10+h} width={w} height="10" fill="#94a3b8" stroke="white" strokeWidth="1" />{Array.from({ length: studCount }).map((_, i) => (<rect key={i} x={10 + (i * gap) - (i===studCount-1 ? 6 : 0)} y="20" width="6" height={h-10} fill="#cbd5e1" stroke="none" />))}<text x="150" y="138" textAnchor="middle" fill="white" fontSize="10">Separación @ {spacing}cm</text></svg>);
+            }; return (<div><div className="w-full h-40 bg-slate-900 rounded-xl mb-6 flex items-center justify-center relative overflow-hidden border border-slate-700/50 shadow-inner"><DrawFrame /><div className="absolute top-2 right-2 bg-purple-900/80 backdrop-blur px-3 py-1 rounded-lg border border-purple-500/50 shadow-lg"><span className="text-xl font-bold text-white">{wallArea.toFixed(1)} m²</span></div></div><div className="animate-fade-in space-y-4"><FieldInput label="Largo Muro" value={dims.l} onChange={(v) => setDims({...dims, l: v})} unit="Metros" /><FieldInput label="Alto Muro" value={dims.h} onChange={(v) => setDims({...dims, h: v})} unit="Metros" /><div className="grid grid-cols-2 gap-3"><div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50"><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Separación</label><div className="flex gap-1"><button onClick={() => setSpacing(40)} className={`flex-1 py-2 rounded font-bold text-sm transition-all ${spacing === 40 ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400'}`}>40cm</button><button onClick={() => setSpacing(60)} className={`flex-1 py-2 rounded font-bold text-sm transition-all ${spacing === 60 ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400'}`}>60cm</button></div></div><div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50"><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Revestimiento</label><div className="flex gap-1"><button onClick={() => setSides(1)} className={`flex-1 py-2 rounded font-bold text-sm transition-all ${sides === 1 ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400'}`}>1 Cara</button><button onClick={() => setSides(2)} className={`flex-1 py-2 rounded font-bold text-sm transition-all ${sides === 2 ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400'}`}>2 Caras</button></div></div></div><div className="bg-slate-800 rounded-xl p-4 border border-slate-700"><SectionTitle>Lista de Materiales</SectionTitle><div className="space-y-3"><div className="flex justify-between items-center border-b border-slate-700 pb-2"><div className="flex items-center gap-3"><div className="bg-purple-500/20 p-2 rounded-lg"><Box size={18} className="text-purple-400"/></div><div><div className="font-bold text-white">Montantes</div><div className="text-[10px] text-slate-400">{dims.h}m</div></div></div><div className="text-2xl font-bold text-white">{studUnits} <span className="text-sm font-normal text-slate-500">tiras</span></div></div><div className="flex justify-between items-center border-b border-slate-700 pb-2"><div className="flex items-center gap-3"><div className="bg-purple-500/20 p-2 rounded-lg"><Minus size={18} className="text-purple-400"/></div><div><div className="font-bold text-white">Soleras</div><div className="text-[10px] text-slate-400">3m</div></div></div><div className="text-2xl font-bold text-white">{trackUnits} <span className="text-sm font-normal text-slate-500">tiras</span></div></div><div className="flex justify-between items-center border-b border-slate-700 pb-2"><div className="flex items-center gap-3"><div className="bg-white/10 p-2 rounded-lg"><Square size={18} className="text-white"/></div><div><div className="font-bold text-white">Planchas</div><div className="text-[10px] text-slate-400">1.2x2.4</div></div></div><div className="text-2xl font-bold text-white">{boardCount} <span className="text-sm font-normal text-slate-500">un</span></div></div><div className="grid grid-cols-3 gap-2 pt-2 text-center"><div className="bg-slate-900 p-2 rounded-lg"><div className="text-[10px] text-slate-400 uppercase">Lenteja</div><div className="font-bold text-purple-300">~{screwFraming}</div></div><div className="bg-slate-900 p-2 rounded-lg"><div className="text-[10px] text-slate-400 uppercase">Trompeta</div><div className="font-bold text-white">~{screwBoard}</div></div><div className="bg-slate-900 p-2 rounded-lg"><div className="text-[10px] text-slate-400 uppercase">Aislante</div><div className="font-bold text-yellow-400">{insulationM2} m²</div></div></div></div></div></div></div>); };
+        const RoofTool = () => { const [width, setWidth] = useState(10.0); const [length, setLength] = useState(6.0);
+            const [slope, setSlope] = useState(20); const [sheetType, setSheetType] = useState('zinc'); const [roofShape, setRoofShape] = useState('gable'); const wRaw = parseFloat(width) || 0, lRaw = parseFloat(length) || 0, sRaw = parseFloat(slope) || 0; const run = roofShape === 'gable' ? wRaw / 2 : wRaw; const rise = run * (sRaw / 100);
+            const rafterLength = Math.sqrt(Math.pow(run, 2) + Math.pow(rise, 2)); const roofArea = lRaw * rafterLength * (roofShape === 'gable' ? 2 : 1);
+            const sheetSpecs = { zinc: { name: 'Zinc Acanalado', usefulWidth: 0.76 }, pv4: { name: 'PV4 / PV6', usefulWidth: 0.95 } };
+            const currentSheet = sheetSpecs[sheetType]; const rowsWidth = Math.ceil(lRaw / currentSheet.usefulWidth); const sheetLengthStd = 3.66;
+            const rowsLength = Math.ceil(rafterLength / (sheetLengthStd - 0.15)); const totalSheets = rowsWidth * rowsLength * (roofShape === 'gable' ? 2 : 1);
+            const screws = Math.ceil(roofArea * 4.5); const DrawRoof = () => { const wDisp = 200;
+            const slopeRatio = run > 0 ? rise / run : 0; const visualSlopeFactor = Math.min(1.5, slopeRatio);
+            const hDisp = Math.min(80, (wDisp/2) * visualSlopeFactor); if (roofShape === 'gable') return (<svg viewBox="0 0 240 140" className="w-full h-full p-2 relative z-10"><line x1="20" y1="120" x2="220" y2="120" stroke="white" strokeWidth="2" strokeDasharray="4 4" /><path d={`M 20 120 L 120 ${120-hDisp} L 220 120`} fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/><line x1="120" y1="120" x2="120" y2={120-hDisp} stroke="#facc15" strokeWidth="2" strokeDasharray="2 2" /><text x="120" y="135" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">{wRaw}m Total</text><text x="125" y={120 - (hDisp/2)} textAnchor="start" fill="#facc15" fontSize="12" fontWeight="bold">{rise.toFixed(2)}m</text><text x="70" y={120 - (hDisp/2) - 5} textAnchor="middle" fill="#38bdf8" fontSize="10" fontWeight="bold">{rafterLength.toFixed(2)}m</text><text x="120" y="20" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="bold">DOS AGUAS</text></svg>);
+            else return (<svg viewBox="0 0 240 140" className="w-full h-full p-2 relative z-10"><line x1="20" y1="120" x2="220" y2="120" stroke="white" strokeWidth="2" strokeDasharray="4 4" /><line x1="20" y1="120" x2="220" y2={120-hDisp} stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" /><line x1="220" y1="120" x2="220" y2={120-hDisp} stroke="#facc15" strokeWidth="2" /><path d={`M 20 120 L 220 ${120-hDisp} L 220 120 Z`} fill="rgba(56, 189, 248, 0.1)" stroke="none" /><text x="120" y="135" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">{wRaw}m Ancho</text><text x="225" y={120 - (hDisp/2)} textAnchor="start" fill="#facc15" fontSize="12" fontWeight="bold">{rise.toFixed(2)}m</text><text x="120" y={120 - (hDisp/2) - 5} textAnchor="middle" fill="#38bdf8" fontSize="10" fontWeight="bold">{rafterLength.toFixed(2)}m</text><text x="120" y="20" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="bold">COBERTIZO (1 AGUA)</text></svg>);
+            }; return (<div><div className="w-full h-48 bg-slate-900 rounded-xl mb-6 flex items-center justify-center relative overflow-hidden border border-slate-700/50 shadow-inner"><div className="absolute left-0 top-0 h-full w-1/2 flex items-center justify-center"><DrawRoof /></div><div className="absolute right-4 top-4 bottom-4 w-1/2 flex flex-col justify-center items-end gap-3 z-20"><div className="bg-slate-900/90 backdrop-blur px-4 py-2 rounded-xl border border-slate-700 shadow-xl text-right w-full"><span className="text-3xl font-black text-cyan-400">{totalSheets}</span><span className="text-xs font-bold text-slate-400 block uppercase">Planchas</span></div><div className="space-y-1 w-full bg-slate-900/50 p-2 rounded-lg border border-slate-800"><div className="flex justify-between text-xs text-blue-200 border-b border-slate-700 pb-1"><span className="flex items-center gap-1">Área Real</span><span className="font-bold">{roofArea.toFixed(2)} m²</span></div><div className="flex justify-between text-xs text-yellow-400 border-b border-slate-700 pb-1 mt-1"><span className="flex items-center gap-1">Tornillos</span><span className="font-bold">~{screws}</span></div></div></div></div><div className="animate-fade-in space-y-4"><SectionTitle>1. Dimensiones</SectionTitle><FieldInput label="Ancho Total" value={width} onChange={setWidth} unit="m" /><div className="grid grid-cols-2 gap-3"><FieldInput label="Largo Techo" value={length} onChange={setLength} unit="m" /><FieldInput label="Pendiente" value={slope} onChange={setSlope} unit="%" step={1} /></div><div className="bg-blue-900/20 border border-blue-500/30 p-3 rounded-xl flex items-center justify-between mb-4"><div className="text-xs text-blue-200 uppercase font-bold">Altura a subir</div><div className="text-2xl font-black text-white">{rise.toFixed(2)} m</div></div><div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 mb-4"><label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Tipo de Plancha</label><div className="flex gap-1"><button onClick={() => setSheetType('zinc')} className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${sheetType === 'zinc' ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400'}`}>Zinc</button><button onClick={() => setSheetType('pv4')} className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${sheetType === 'pv4' ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400'}`}>PV4</button></div></div><div className="bg-slate-800 rounded-xl p-4 border border-slate-700"><SectionTitle>Materiales Total</SectionTitle><div className="grid grid-cols-2 gap-4"><div className="bg-slate-900 p-3 rounded-xl text-center border border-slate-600"><div className="text-3xl font-black text-cyan-400">{totalSheets}</div><div className="text-xs font-bold text-slate-400 uppercase mt-1">Planchas <br/><span className="text-[9px] font-normal">(Ref: 3.66m)</span></div></div><div className="space-y-2"><div className="bg-slate-900 p-2 rounded-lg flex justify-between items-center px-3"><span className="text-xs text-slate-400">Área Real</span><span className="font-bold text-white">{roofArea.toFixed(1)} m²</span></div><div className="bg-slate-900 p-2 rounded-lg flex justify-between items-center px-3"><span className="text-xs text-slate-400">Tornillos</span><span className="font-bold text-yellow-400">~{screws}</span></div><div className="bg-slate-900 p-2 rounded-lg flex justify-between items-center px-3"><span className="text-xs text-slate-400">Caída</span><span className="font-bold text-white">~{(rafterLength).toFixed(2)} m</span></div></div></div></div></div></div>);
+        };
+const FlooringTool = () => { const [dims, setDims] = useState({ l: 3.0, w: 3.0 });
+            const [tileType, setTileType] = useState('60x60'); const [waste, setWaste] = useState(1.10);
+            const tileSpecs = { '30x30': { name: 'Cerámica 30x30', areaBox: 1.5, adhesive: 4.5 }, '45x45': { name: 'Cerámica 45x45', areaBox: 2.0, adhesive: 4.5 }, '60x60': { name: 'Porcelanato 60x60', areaBox: 1.44, adhesive: 5.0 }, 'floor': { name: 'Piso Flotante', areaBox: 2.4, adhesive: 0 } };
+            const currentTile = tileSpecs[tileType]; const area = dims.l * dims.w; const areaTotal = area * waste;
+            const boxes = Math.ceil(areaTotal / currentTile.areaBox); const adhesiveBags = currentTile.adhesive > 0 ? Math.ceil((areaTotal * currentTile.adhesive) / 25) : 0;
+            const grout = Math.ceil(area * 0.15); return (<div><div className="w-full h-40 bg-slate-900 rounded-xl mb-6 flex items-center justify-center relative overflow-hidden border border-slate-700/50 shadow-inner p-8"><div className="w-full h-full border-2 border-white/20 relative grid" style={{ gridTemplateColumns: `repeat(${Math.ceil(dims.l)}, 1fr)`, gridTemplateRows: `repeat(${Math.ceil(dims.w)}, 1fr)` }}><div className="absolute inset-0 bg-cyan-500/10"></div></div><div className="absolute bg-slate-900/80 backdrop-blur px-3 py-1 rounded-lg"><span className="text-xl font-bold text-white">{area.toFixed(2)} m²</span></div></div><div className="animate-fade-in space-y-4"><FieldInput label="Largo" value={dims.l} onChange={(v) => setDims({...dims, l: v})} unit="Metros" /><FieldInput label="Ancho" value={dims.w} onChange={(v) => setDims({...dims, w: v})} unit="Metros" /><div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 mb-4"><label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Tipo de Piso</label><select value={tileType} onChange={(e) => setTileType(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white text-lg font-bold py-3 px-4 rounded-xl focus:outline-none focus:border-cyan-500">{Object.entries(tileSpecs).map(([key, t]) => (<option key={key} value={key}>{t.name}</option>))}</select></div><div className="bg-slate-800 rounded-xl p-4 border border-slate-700"><SectionTitle>Lista de Compra</SectionTitle><div className="space-y-3"><div className="flex justify-between items-center border-b border-slate-700 pb-2"><div className="flex items-center gap-3"><div className="bg-cyan-500/20 p-2 rounded-lg"><Grid size={18} className="text-cyan-400"/></div><div><div className="font-bold text-white">Cajas</div><div className="text-[10px] text-slate-400">Rendimiento: {currentTile.areaBox} m²</div></div></div><div className="text-2xl font-bold text-white">{boxes} <span className="text-sm font-normal text-slate-500">cajas</span></div></div>{adhesiveBags > 0 && (<div className="flex justify-between items-center border-b border-slate-700 pb-2"><div className="flex items-center gap-3"><div className="bg-yellow-500/20 p-2 rounded-lg"><Layers size={18} className="text-yellow-400"/></div><div><div className="font-bold text-white">Bekron</div><div className="text-[10px] text-slate-400">Sacos 25kg</div></div></div><div className="text-2xl font-bold text-white">{adhesiveBags} <span className="text-sm font-normal text-slate-500">sacos</span></div></div>)}{tileType !== 'floor' && (<div className="flex justify-between items-center pb-2"><div className="flex items-center gap-3"><div className="bg-white/10 p-2 rounded-lg"><Droplets size={18} className="text-white"/></div><div><div className="font-bold text-white">Fragüe</div><div className="text-[10px] text-slate-400">Estimado kg</div></div></div><div className="text-2xl font-bold text-white">~{grout} <span className="text-sm font-normal text-slate-500">kg</span></div></div>)}</div></div><div className="text-center text-[10px] text-slate-500 mt-2">*Incluye 10% de pérdida por cortes.</div></div></div>); };
+        const ExcavationTool = () => { const [dims, setDims] = useState({ l: 5.0, w: 2.0, h: 1.5 });
+            const [swell, setSwell] = useState(30); const [truckSize, setTruckSize] = useState(12); const volBanco = dims.l * dims.w * dims.h;
+            const factor = 1 + (swell / 100); const volSuelto = volBanco * factor; const numTrucks = Math.ceil(volSuelto / truckSize);
+            const DrawExcavation = () => { const wBase = 180; const hVisual = Math.min(Math.max((dims.h / dims.w) * 100, 40), 100);
+            return (<svg viewBox="0 0 300 150" className="w-full h-full p-4 relative z-10"><line x1="10" y1="20" x2="290" y2="20" stroke="#a5f3fc" strokeWidth="2" strokeDasharray="5 5" opacity="0.5"/><text x="280" y="15" textAnchor="end" fill="#a5f3fc" fontSize="10" opacity="0.7">NPT ±0.00</text><path d={`M ${(300-wBase)/2} 20 L ${(300-wBase)/2 + 10} ${20 + hVisual} L ${(300+wBase)/2 - 10} ${20 + hVisual} L ${(300+wBase)/2} 20`} fill="rgba(234, 179, 8, 0.1)" stroke="#eab308" strokeWidth="2" /><line x1="150" y1="20" x2="150" y2={20 + hVisual} stroke="white" strokeWidth="1" strokeDasharray="2 2" /><text x="155" y={20 + (hVisual/2)} fill="white" fontSize="12" fontWeight="bold">h={dims.h}m</text><g transform="translate(220, 80) scale(0.8)" opacity="0.6"><path d="M0 0 h20 v10 h-20 z" fill="#94a3b8" /><circle cx="5" cy="10" r="3" fill="#cbd5e1"/><circle cx="15" cy="10" r="3" fill="#cbd5e1"/></g></svg>);
+            }; return (<div><div className="w-full h-40 bg-slate-900 rounded-xl mb-6 flex items-center justify-center relative overflow-hidden border border-slate-700/50 shadow-inner"><DrawExcavation /><div className="absolute top-2 left-2 bg-yellow-900/80 backdrop-blur px-3 py-1 rounded-lg border border-yellow-500/50 shadow-lg"><span className="text-xs text-yellow-200 block uppercase font-bold">Vol. Retiro</span><span className="text-xl font-bold text-white">{volSuelto.toFixed(2)} m³</span></div></div><div className="animate-fade-in space-y-4"><SectionTitle>1. Geometría (En Banco)</SectionTitle><FieldInput label="Largo" value={dims.l} onChange={(v) => setDims({...dims, l: v})} unit="Metros" /><FieldInput label="Ancho" value={dims.w} onChange={(v) => setDims({...dims, w: v})} unit="Metros" /><FieldInput label="Profundidad" value={dims.h} onChange={(v) => setDims({...dims, h: v})} unit="Metros" /><SectionTitle>2. Suelo y Logística</SectionTitle><div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 mb-4"><label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Tipo de Terreno (Esponjamiento)</label><select value={swell} onChange={(e) => setSwell(parseFloat(e.target.value))} className="w-full bg-slate-900 border border-slate-700 text-white text-lg font-bold py-3 px-4 rounded-xl focus:outline-none focus:border-yellow-500 transition-colors"><option value={10}>Arena / Gravilla (10%)</option><option value={20}>Tierra Común (20%)</option><option value={30}>Arcilla / Compacta (30%)</option><option value={40}>Roca Volada (40-50%)</option></select></div><div className="bg-slate-800 rounded-xl p-4 border border-slate-700"><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase">Capacidad Camión</label><div className="flex gap-1"><button onClick={() => setTruckSize(8)} className={`flex-1 py-2 rounded text-sm font-bold transition-all ${truckSize === 8 ? 'bg-yellow-600 text-white' : 'bg-slate-700 text-slate-400'}`}>8 m³</button><button onClick={() => setTruckSize(12)} className={`flex-1 py-2 rounded text-sm font-bold transition-all ${truckSize === 12 ? 'bg-yellow-600 text-white' : 'bg-slate-700 text-slate-400'}`}>12 m³</button></div></div><div className="bg-slate-900 p-2 rounded-xl text-center border border-slate-600 flex flex-col justify-center"><div className="text-3xl font-black text-yellow-400">{numTrucks}</div><div className="text-[10px] font-bold text-slate-400 uppercase">Viajes / Camiones</div></div></div><div className="mt-3 pt-3 border-t border-slate-600 flex justify-between items-center text-xs"><span className="text-slate-400">Volumen Geométrico:</span><span className="font-bold text-white">{volBanco.toFixed(2)} m³</span></div></div></div></div>);
+        };
+        const StairsTool = () => { const [totalHeight, setTotalHeight] = useState(2.60); const [numSteps, setNumSteps] = useState(15);
+            useEffect(() => { const ideal = Math.round(totalHeight / 0.175); setNumSteps(Math.max(1, ideal)); }, [totalHeight]); const riser = totalHeight / numSteps;
+            const tread = (64 - (2 * (riser * 100))) / 100; const runTotal = tread * (numSteps - 1);
+            const blondelVal = (2 * (riser * 100)) + (tread * 100);
+            const isSafe = blondelVal >= 63 && blondelVal <= 65; const statusText = isSafe ? "CÓMODA (OK)" : "PELIGROSA";
+            const DrawStairs = () => { const sW = 180; const sH = 100; const stepW = sW / numSteps;
+            const stepH = sH / numSteps; let path = `M 10 ${120} `;
+            for(let i=0; i<numSteps; i++) { path += `L ${10 + (i*stepW)} ${120 - (i*stepH)} L ${10 + ((i+1)*stepW)} ${120 - (i*stepH)} `;
+            } path += `L ${10 + sW} ${120 - sH}`;
+            return (<svg viewBox="0 0 240 140" className="w-full h-full p-2 relative z-10"><path d={path} fill="none" stroke={isSafe ? "#4ade80" : "#f87171"} strokeWidth="2" /><line x1="10" y1="120" x2="200" y2="120" stroke="white" strokeWidth="1" strokeDasharray="2 2" opacity="0.3"/><text x="210" y="70" textAnchor="start" fill="white" fontSize="10" fontWeight="bold">H={totalHeight}m</text><line x1="205" y1="20" x2="205" y2="120" stroke="white" strokeWidth="1"/><circle cx="10" cy="120" r="3" fill="#4ade80" /><text x="15" y="135" fill="#4ade80" fontSize="10" fontWeight="bold">Nº 1</text><circle cx={10 + sW} cy={120 - sH} r="3" fill="#4ade80" /><text x={10 + sW} y={120 - sH - 5} fill="#4ade80" fontSize="10" fontWeight="bold" textAnchor="end">Nº {numSteps}</text></svg>);
+            }; return (<div><div className="w-full h-40 bg-slate-900 rounded-xl mb-6 flex items-center justify-center relative overflow-hidden border border-slate-700/50 shadow-inner"><DrawStairs /><div className={`absolute top-2 left-2 px-3 py-1 rounded-lg border shadow-lg ${isSafe ? 'bg-green-900/80 border-green-500/50' : 'bg-red-900/80 border-red-500/50'}`}><span className={`text-xs block uppercase font-bold ${isSafe ? 'text-green-200' : 'text-red-200'}`}>{statusText}</span></div></div><div className="animate-fade-in space-y-4"><FieldInput label="Altura a Salvar" value={totalHeight} onChange={setTotalHeight} unit="Metros" /><div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 mb-4"><label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">CANTIDAD DE PELDAÑOS</label><div className="flex items-center gap-3"><button onClick={() => setNumSteps(Math.max(1, numSteps-1))} className="w-12 h-12 flex items-center justify-center bg-slate-800 text-slate-300 rounded-xl border border-slate-700 active:scale-95"><Minus size={24}/></button><div className="flex-1 text-center py-2 rounded-xl bg-slate-800 border-2 border-slate-600"><span className="text-3xl font-black text-white block">{numSteps}</span><span className="text-[10px] text-slate-400 uppercase font-bold">UNIDADES</span></div><button onClick={() => setNumSteps(numSteps+1)} className="w-12 h-12 flex items-center justify-center bg-slate-800 text-slate-300 rounded-xl border border-slate-700 active:scale-95"><Plus size={24}/></button></div></div><div className="bg-slate-800 rounded-xl p-4 border border-slate-700"><SectionTitle>MEDIDAS EXACTAS</SectionTitle><div className="grid grid-cols-2 gap-3"><div className="bg-slate-900 p-3 rounded-xl border border-slate-600 text-center"><div className="text-3xl font-black text-cyan-400">{(riser*100).toFixed(1)} <span className="text-sm text-slate-500">cm</span></div><div className="text-[10px] text-slate-400 uppercase font-bold mt-1">ALTO (CONTRAHUELLA)</div></div><div className="bg-slate-900 p-3 rounded-xl border border-slate-600 text-center"><div className="text-3xl font-black text-cyan-400">{(tread*100).toFixed(1)} <span className="text-sm text-slate-500">cm</span></div><div className="text-[10px] text-slate-400 uppercase font-bold mt-1">PISO (HUELLA)</div></div><div className="col-span-2 bg-slate-900 p-3 rounded-xl border border-slate-600 flex justify-between items-center px-4"><div className="text-[10px] text-slate-400 uppercase font-bold">LARGO TOTAL OCUPADO</div><div className="text-xl font-bold text-white">{runTotal.toFixed(2)} m</div></div></div></div></div></div>);
+        };
+
+        const App = () => {
+            const [currentView, setCurrentView] = useState('dashboard');
+            const renderContent = () => {
+                switch(currentView) {
+                case 'dashboard': return <Dashboard setView={setCurrentView} />;
+                case 'geo_eng': return <GeometryEngineeringModule />;
+                case 'topography': return <TopographyModule />; 
+                case 'converter': return <ToolWrapper title="Conversor" icon={Scale}><UnitConverterTool /></ToolWrapper>;
+                case 'algebra': return <ToolWrapper title="Álgebra" icon={FunctionSquare}><AlgebraTool /></ToolWrapper>;
+                case 'brick': return <ToolWrapper title="Albañilería" icon={Grid}><BrickTool /></ToolWrapper>;
+                case 'calculator': return <ToolWrapper title="Calculadora" icon={Calculator}><SimpleCalculator /></ToolWrapper>;
+                case 'steel': return <ToolWrapper title="Enfierradura" icon={Layers}><SteelTool /></ToolWrapper>;
+                case 'drywall': return <ToolWrapper title="Tabiquería" icon={Box}><DrywallTool /></ToolWrapper>;
+                case 'roof': return <ToolWrapper title="Techumbre" icon={Home}><RoofTool /></ToolWrapper>;
+                case 'floor': return <ToolWrapper title="Pisos y Cerámica" icon={Grid}><FlooringTool /></ToolWrapper>;
+                case 'excavation': return <ToolWrapper title="Excavación" icon={Triangle}><ExcavationTool /></ToolWrapper>;
+                case 'stairs': return <ToolWrapper title="Escaleras" icon={Move}><StairsTool /></ToolWrapper>;
+                default: return <Dashboard setView={setCurrentView} />;
+                }
+            };
+            const ToolWrapper = ({ children, title, icon: Icon }) => (
+                <div className="animate-fade-in">
+                <div className="flex items-center gap-3 mb-6"><div className="bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-700"><Icon className="w-6 h-6 text-white" /></div><h2 className="text-2xl font-bold text-white">{title}</h2></div>{children}</div>
+            );
+            const Dashboard = ({ setView }) => (
+                <div className="animate-slide-up">
+                
+                <SectionTitle>Módulos Principales</SectionTitle>
+                <div className="grid grid-cols-1 gap-4 mb-6">
+                    <GlassCard onClick={() => setView('geo_eng')} className="border-l-4 border-l-cyan-500 hover:shadow-cyan-500/20 active:scale-[0.98] flex items-center justify-between group">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-cyan-500/20 p-4 rounded-full text-cyan-400 group-hover:bg-cyan-500 group-hover:text-white transition-colors">
+                                <Box size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white">Geometría e Ingeniería</h3>
+                                <p className="text-xs text-slate-400 mt-1">Áreas, Volúmenes, Hormigón...</p>
+                            </div>
+                        </div>
+                        <ChevronUp className="rotate-90 text-slate-500" />
+                    </GlassCard>
+
+                    <GlassCard onClick={() => setView('topography')} className="border-l-4 border-l-orange-500 hover:shadow-orange-500/20 active:scale-[0.98] flex items-center justify-between group">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-orange-500/20 p-4 rounded-full text-orange-400 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                                <Activity size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white">Topografía</h3>
+                                <p className="text-xs text-slate-400 mt-1">Pendientes, Taludes y Nivel</p>
+                            </div>
+                        </div>
+                        <ChevronUp className="rotate-90 text-slate-500" />
+                    </GlassCard>
+                </div>
+
+                <SectionTitle>Matemáticas & Cálculo</SectionTitle>
+                <div className="grid grid-cols-1 gap-4 mb-6">
+                    <GlassCard onClick={() => setView('converter')} className="border-l-4 border-l-emerald-500 hover:shadow-emerald-500/20 active:scale-[0.98] flex items-center justify-between group">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-emerald-500/20 p-4 rounded-full text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                                <Scale size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white">Conversor de Unidades</h3>
+                                <p className="text-xs text-slate-400 mt-1">Metros, Pulgadas, Litros...</p>
+                            </div>
+                        </div>
+                        <ChevronUp className="rotate-90 text-slate-500" />
+                    </GlassCard>
+
+                    <GlassCard onClick={() => setView('algebra')} className="border-l-4 border-l-purple-500 hover:shadow-purple-500/20 active:scale-[0.98] flex items-center justify-between group">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-purple-500/20 p-4 rounded-full text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                                <FunctionSquare size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white">Álgebra Visual</h3>
+                                <p className="text-xs text-slate-400 mt-1">Ecuaciones y Sistemas 2x2</p>
+                            </div>
+                        </div>
+                        <ChevronUp className="rotate-90 text-slate-500" />
+                    </GlassCard>
+                </div>
+
+                <SectionTitle>Obra Gruesa & Terminaciones</SectionTitle>
+                <div className="grid grid-cols-2 gap-4">
+                    <GlassCard onClick={() => setView('excavation')} className="border-b-4 border-b-yellow-500 hover:shadow-yellow-500/20 active:scale-95"><Triangle className="w-8 h-8 text-yellow-400 mb-3 rotate-180" /><h3 className="font-bold text-white">Excavación</h3><p className="text-xs text-slate-400 mt-1">Retiro y Camiones</p></GlassCard>
+                    <GlassCard onClick={() => setView('stairs')} className="border-b-4 border-b-green-500 hover:shadow-green-500/20 active:scale-95"><Move className="w-8 h-8 text-green-400 mb-3 -rotate-45" /><h3 className="font-bold text-white">Escaleras</h3><p className="text-xs text-slate-400 mt-1">Ley de Blondel</p></GlassCard>
+                    <GlassCard onClick={() => setView('brick')} className="border-b-4 border-b-orange-500 hover:shadow-orange-500/20 active:scale-95"><Grid className="w-8 h-8 text-orange-400 mb-3" /><h3 className="font-bold text-white">Albañilería</h3><p className="text-xs text-slate-400 mt-1">Ladrillos</p></GlassCard>
+                    <GlassCard onClick={() => setView('steel')} className="border-b-4 border-b-indigo-500 hover:shadow-indigo-500/20 active:scale-95"><Layers className="w-8 h-8 text-indigo-400 mb-3" /><h3 className="font-bold text-white">Enfierradura</h3><p className="text-xs text-slate-400 mt-1">Cálculo de kilos</p></GlassCard>
+                    <GlassCard onClick={() => setView('drywall')} className="border-b-4 border-b-purple-500 hover:shadow-purple-500/20 active:scale-95"><Box className="w-8 h-8 text-purple-400 mb-3" /><h3 className="font-bold text-white">Tabiquería</h3><p className="text-xs text-slate-400 mt-1">Metalcon</p></GlassCard>
+                    <GlassCard onClick={() => setView('roof')} className="border-b-4 border-b-teal-500 hover:shadow-teal-500/20 active:scale-95"><Home className="w-8 h-8 text-teal-400 mb-3 mx-auto" /><h3 className="font-bold text-white text-center">Techumbre</h3><p className="text-xs text-slate-400 mt-1 text-center">Pendientes y Zinc</p></GlassCard>
+                    <GlassCard onClick={() => setView('floor')} className="border-b-4 border-b-cyan-500 hover:shadow-cyan-500/20 active:scale-95"><Grid className="w-8 h-8 text-cyan-400 mb-3 mx-auto" /><h3 className="font-bold text-white text-center">Pisos</h3><p className="text-xs text-slate-400 mt-1 text-center">Cerámica</p></GlassCard>
+                    <GlassCard onClick={() => setView('calculator')} className="border-b-4 border-b-pink-500 hover:shadow-pink-500/20 active:scale-95"><Calculator className="w-8 h-8 text-pink-400 mb-3" /><h3 className="font-bold text-white">Calculadora</h3><p className="text-xs text-slate-400 mt-1">Científica Obra</p></GlassCard>
+                </div>
+                </div>
+            );
+            return (
+                <div className="min-h-screen bg-[conic-gradient(at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-900 to-slate-800 text-slate-200 font-sans selection:bg-cyan-500/30 pb-20">
+                <div className="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-700/50 px-6 py-4 flex justify-between items-center shadow-lg">
+                    <div><h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2"><span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">MCH PRO</span> <span className="text-xs bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono border border-slate-600">v18.0 (Algebra)</span></h1></div>
+                    {currentView !== 'dashboard' && (<button onClick={() => setCurrentView('dashboard')} className="bg-slate-800 p-2 rounded-full hover:bg-slate-700 transition-colors border border-slate-700"><Home size={22} className="text-slate-400" /></button>)}
+                </div>
+                <main className="max-w-md mx-auto p-4 sm:p-6">{renderContent()}</main>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+    </script>
+</body>
+</html>

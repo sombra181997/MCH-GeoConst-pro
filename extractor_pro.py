@@ -5,59 +5,56 @@ import json
 import time
 import sys
 
-# 1. Configuración para capturar el tráfico de red
+# Lista de canales a extraer
+CANALES = [
+    {"nombre": "TVN Chile", "url": "https://www.tvn.cl/envivo/"},
+    {"nombre": "Chilevisión", "url": "https://www.chilevision.cl/senal-online"},
+    # Puedes agregar más canales aquí siguiendo el mismo formato
+]
+
 opciones = webdriver.ChromeOptions()
+opciones.add_argument('--headless') # En GitHub DEBE ser headless (invisible)
 opciones.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
 
-print("--- INICIANDO RADAR DE TRÁFICO IPTV ---")
+def extraer_link(driver, nombre, url):
+    print(f"\n--- Procesando: {nombre} ---")
+    driver.get(url)
+    
+    # Esperamos 90 segundos para asegurar que pasen los anuncios
+    for i in range(90, 0, -1):
+        sys.stdout.write(f"\rEsperando anuncios de {nombre}: {i}s...   ")
+        sys.stdout.flush()
+        time.sleep(1)
+    
+    logs = driver.get_log('performance')
+    for entrada in logs:
+        msg = json.loads(entrada['message'])['message']
+        if 'Network.requestWillBeSent' in msg['method']:
+            peticion = msg['params']['request']['url']
+            if ".m3u8" in peticion and ("master" in peticion or "index" in peticion):
+                if "ads" not in peticion:
+                    return peticion
+    return None
 
+# Inicio del proceso
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=opciones)
 
-url = "https://www.tvn.cl/envivo/"
+lista_m3u = ["#EXTM3U\n"]
 
 try:
-    print(f"Entrando a: {url}")
-    driver.get(url)
-    
-    print("\n[!] Tienes 90 segundos. CIERRA LOS ANUNCIOS Y DALE PLAY SI ES NECESARIO.")
-    
-    encontrado = False
-    # Escaneamos el tráfico durante 90 segundos
-    for i in range(90, 0, -1):
-        sys.stdout.write(f"\rEscaneando tráfico de red... {i}s restantes   ")
-        sys.stdout.flush()
-        
-        # Extraemos los logs de rendimiento (el tráfico)
-        logs = driver.get_log('performance')
-        
-        for entrada in logs:
-            mensaje = json.loads(entrada['message'])['message']
-            
-            # Buscamos en las peticiones de red
-            if 'Network.requestWillBeSent' in mensaje['method']:
-                url_peticion = mensaje['params']['request']['url']
-                
-                # Buscamos el link .m3u8 que tenga el token
-                if ".m3u8" in url_peticion and ("master" in url_peticion or "index" in url_peticion):
-                    link_final = url_peticion
-                    
-                    # Guardamos el archivo
-                    with open("lista_definitiva.m3u", "w", encoding="utf-8") as f:
-                        f.write("#EXTM3U\n#EXTINF:-1, Canal Capturado\n" + link_final + "\n")
-                    
-                    print(f"\n\n¡LOGRADO! El radar capturó el link en el aire.")
-                    print(f"Link: {link_final[:70]}...")
-                    encontrado = True
-                    break
-        
-        if encontrado:
-            break
-        time.sleep(1)
+    for canal in CANALES:
+        link = extraer_link(driver, canal['nombre'], canal['url'])
+        if link:
+            lista_m3u.append(f"#EXTINF:-1, {canal['nombre']}\n{link}\n")
+            print(f"\n✅ ¡{canal['nombre']} capturado!")
+        else:
+            print(f"\n❌ No se encontró link para {canal['nombre']}")
 
-    if not encontrado:
-        print("\n\nEl radar no detectó el flujo .m3u8. Revisa si el video se reprodujo.")
+    # Guardar todos los resultados en el archivo final
+    with open("lista_final.m3u", "w", encoding="utf-8") as f:
+        f.writelines(lista_m3u)
+    print("\n--- PROCESO TERMINADO: Lista generada con éxito ---")
 
 finally:
     driver.quit()
-    print("Proceso finalizado.")
